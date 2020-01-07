@@ -229,6 +229,79 @@ describe('removeDirectivesFromDocument', () => {
     expect(print(doc)).toBe(print(expected));
   });
 
+  it('should remove nested fragment spreads and definitions associated with the removed directive', () => {
+    const query = gql`
+      query Simple {
+        networkField
+        field @client {
+          ...ClientFragment
+        }
+      }
+
+      fragment ClientFragment on Thing {
+        ...NestedFragment
+      }
+
+      fragment NestedFragment on Thing {
+        otherField
+        bar
+      }
+    `;
+
+    const expected = gql`
+      query Simple {
+        networkField
+      }
+    `;
+
+    const doc = removeDirectivesFromDocument(
+      [{ name: 'client', remove: true }],
+      query,
+    );
+    expect(print(doc)).toBe(print(expected));
+  });
+
+  it('should not remove nested fragment spreads and definitions used without the removed directive', () => {
+    const query = gql`
+      query Simple {
+        networkField {
+          ...NestedFragment
+        }
+        field @client {
+          ...ClientFragment
+        }
+      }
+
+      fragment ClientFragment on Thing {
+        ...NestedFragment
+      }
+
+      fragment NestedFragment on Thing {
+        otherField
+        bar
+      }
+    `;
+
+    const expected = gql`
+      query Simple {
+        networkField {
+          ...NestedFragment
+        }
+      }
+
+      fragment NestedFragment on Thing {
+        otherField
+        bar
+      }
+    `;
+
+    const doc = removeDirectivesFromDocument(
+      [{ name: 'client', remove: true }],
+      query,
+    );
+    expect(print(doc)).toBe(print(expected));
+  });
+
   it('should remove a simple directive', () => {
     const query = gql`
       query Simple {

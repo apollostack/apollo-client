@@ -96,7 +96,11 @@ export function removeDirectivesFromDocument(
   const variablesInUse: Record<string, boolean> = Object.create(null);
   let variablesToRemove: RemoveArgumentsConfig[] = [];
 
-  const fragmentSpreadsInUse: Record<string, boolean> = Object.create(null);
+  const fragmentSpreads: Record<string, {
+    inUse: boolean,
+    hasParentField: boolean,
+    parentFragments: string[],
+  }> = Object.create(null);
   let fragmentSpreadsToRemove: RemoveFragmentSpreadConfig[] = [];
 
   let modifiedDoc = nullIfDocIsEmpty(
@@ -162,10 +166,23 @@ export function removeDirectivesFromDocument(
       },
 
       FragmentSpread: {
-        enter(node) {
-          // Keep track of referenced fragment spreads. This is used to
-          // determine if top level fragment definitions should be removed.
-          fragmentSpreadsInUse[node.name.value] = true;
+        enter(node, key, parent, path, ancestors) {
+          if (!fragmentSpreads[node.name.value])
+            fragmentSpreads[node.name.value] = {
+              // Keep track of referenced fragment spreads. This is used to
+              // determine if top level fragment definitions should be removed.
+              inUse: true,
+              // Use to determine if field use the same fragment with other removed directives.
+              hasParentField: false,
+              // Keep track of referenced parent fragments. This is used to
+              // determine if top level fragment definitions should be removed.
+              parentFragments: [],
+            };
+
+          if ((ancestors[2] as FragmentDefinitionNode).kind === 'FragmentDefinition')
+            fragmentSpreads[node.name.value].parentFragments.push((ancestors[2] as FragmentDefinitionNode).name.value);
+          else
+            fragmentSpreads[node.name.value].hasParentField = true;
         },
       },
 
@@ -179,6 +196,25 @@ export function removeDirectivesFromDocument(
       },
     }),
   );
+
+  let shouldCheckAgain = true;
+
+  while (shouldCheckAgain) {
+    shouldCheckAgain = false;
+    Object.keys(fragmentSpreads).forEach(key => {
+      if (
+        fragmentSpreads[key].inUse &&
+        !fragmentSpreads[key].hasParentField &&
+        fragmentSpreadsToRemove.some(({ name }) => fragmentSpreads[key].parentFragments.includes(name))
+      ) {
+        fragmentSpreadsToRemove.push({
+          name: key,
+        });
+        fragmentSpreads[key].inUse = false;
+        shouldCheckAgain = true;
+      }
+    });
+  }
 
   // If we've removed fields with arguments, make sure the associated
   // variables are also removed from the rest of the document, as long as they
@@ -195,7 +231,7 @@ export function removeDirectivesFromDocument(
   // document, as long as they aren't being used elsewhere.
   if (
     modifiedDoc &&
-    filterInPlace(fragmentSpreadsToRemove, fs => !fragmentSpreadsInUse[fs.name])
+    filterInPlace(fragmentSpreadsToRemove, fs => !fragmentSpreads[fs.name] || !fragmentSpreads[fs.name].inUse)
       .length
   ) {
     modifiedDoc = removeFragmentSpreadFromDocument(
