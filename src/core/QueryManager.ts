@@ -1339,7 +1339,7 @@ export class QueryManager<TStore> {
     );
   }
 
-  private setQuery<T extends keyof QueryInfo>(
+  public setQuery<T extends keyof QueryInfo>(
     queryId: string,
     updater: (prev: QueryInfo) => Pick<QueryInfo, T> | void,
   ) {

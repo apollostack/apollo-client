@@ -301,6 +301,7 @@ export class ObservableQuery<
     fetchMoreOptions: FetchMoreQueryOptions<TVariables, K> &
       FetchMoreOptions<TData, TVariables>,
   ): Promise<ApolloQueryResult<TData>> {
+    const { fetchPolicy } = this.options;
     const combinedOptions = {
       ...(fetchMoreOptions.query ? fetchMoreOptions : {
         ...this.options,
@@ -310,7 +311,7 @@ export class ObservableQuery<
           ...fetchMoreOptions.variables,
         },
       }),
-      fetchPolicy: 'network-only',
+      fetchPolicy: fetchPolicy === 'no-cache' ? 'no-cache' : 'network-only',
     } as WatchQueryOptions;
 
     const qid = this.queryManager.generateQueryId();
@@ -331,7 +332,7 @@ export class ObservableQuery<
               fetchMoreResult: data,
               variables: combinedOptions.variables as TVariables,
             }) : data;
-          });
+          }, fetchPolicy === 'no-cache');
           this.queryManager.stopQuery(qid);
           return fetchMoreResult as ApolloQueryResult<TData>;
         },
@@ -488,6 +489,7 @@ export class ObservableQuery<
       previousQueryResult: TData,
       options: UpdateQueryOptions<TVars>,
     ) => TData,
+    noCache: boolean = false,
   ): void {
     const { queryManager } = this;
     const {
@@ -503,12 +505,19 @@ export class ObservableQuery<
     );
 
     if (newResult) {
-      queryManager.cache.write({
-        query: document,
-        result: newResult,
-        dataId: 'ROOT_QUERY',
-        variables,
-      });
+      if (noCache) {
+        queryManager.setQuery(this.queryId, () => ({
+          newData: { result: newResult, complete: true },
+          invalidated: true,
+        }));
+      } else {
+        queryManager.cache.write({
+            query: document,
+            result: newResult,
+            dataId: 'ROOT_QUERY',
+            variables: variables,
+        });
+      }
 
       queryManager.broadcastQueries();
     }
