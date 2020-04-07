@@ -12,6 +12,7 @@ import { InMemoryCache } from '../../../cache/inmemory/inMemoryCache';
 import { ApolloProvider } from '../../context/ApolloProvider';
 import { useQuery } from '../useQuery';
 import { requireReactLazily } from '../../react';
+import { useApolloClient } from '../useApolloClient';
 
 const React = requireReactLazily();
 const { useState, useReducer } = React;
@@ -51,10 +52,11 @@ describe('useQuery Hook', () => {
 
   describe('General use', () => {
     it('should handle a simple query properly', async () => {
+      let resultData;
       const Component = () => {
         const { data, loading } = useQuery(CAR_QUERY);
         if (!loading) {
-          expect(data).toEqual(CAR_RESULT_DATA);
+          resultData = data;
         }
         return null;
       };
@@ -65,7 +67,9 @@ describe('useQuery Hook', () => {
         </MockedProvider>
       );
 
-      return wait();
+      return wait().then(() => {
+        expect(resultData).toEqual(CAR_RESULT_DATA);
+      });
     });
 
     it('should keep data as undefined until data is actually returned', async () => {
@@ -164,6 +168,29 @@ describe('useQuery Hook', () => {
       );
 
       return wait();
+    });
+
+    it("should return data when ssr is set to false and rendering on the client", async () => {
+      let dataResult;
+      const Component = () => {
+        const client = useApolloClient();
+        // SSR disables when disableNetworkFetches is true, but since this isn't executing on
+        // a SSR, then it should ignore the propery and not return the SSR loading state.
+        client.disableNetworkFetches = true;
+        const { data } = useQuery(CAR_QUERY, { ssr: false });
+        dataResult = data;
+        return null;
+      };
+
+      render(
+        <MockedProvider mocks={CAR_MOCKS}>
+          <Component />
+        </MockedProvider>
+      );
+
+      return wait().then(() => {
+        expect(dataResult).toEqual(CAR_RESULT_DATA);
+      })
     });
   });
 

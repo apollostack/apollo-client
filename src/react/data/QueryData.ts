@@ -155,6 +155,10 @@ export class QueryData<TData, TVariables> extends OperationData {
 
   private getExecuteSsrResult() {
     const treeRenderingInitiated = this.context && this.context.renderPromises;
+    if (!treeRenderingInitiated) {
+      return undefined;
+    }
+
     const ssrDisabled = this.getOptions().ssr === false;
     const fetchDisabled = this.refreshClient().client.disableNetworkFetches;
 
@@ -167,20 +171,14 @@ export class QueryData<TData, TVariables> extends OperationData {
 
     // If SSR has been explicitly disabled, and this function has been called
     // on the server side, return the default loading state.
-    if (ssrDisabled && (treeRenderingInitiated || fetchDisabled)) {
+    if (ssrDisabled || fetchDisabled) {
       return ssrLoading;
     }
 
-    let result;
-    if (treeRenderingInitiated) {
-      result =
-        this.context.renderPromises!.addQueryPromise(
-          this,
-          this.getQueryResult
-        ) || ssrLoading;
-    }
-
-    return result;
+    return (
+      this.context.renderPromises!.addQueryPromise(this, this.getQueryResult) ||
+      ssrLoading
+    );
   }
 
   private prepareObservableQueryOptions() {
