@@ -41,6 +41,7 @@ export interface BaseQueryOptions<TVariables = OperationVariables> {
   context?: Context;
   partialRefetch?: boolean;
   returnPartialData?: boolean;
+  clearPreviousDataOnLoad?: boolean;
 }
 
 export interface QueryFunctionOptions<

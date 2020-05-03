@@ -424,7 +424,11 @@ export class QueryData<TData, TVariables> extends OperationData {
     this.setOptions(options, true);
     this.previousData.loading =
       this.previousData.result && this.previousData.result.loading || false;
-    return this.previousData.result = result;
+    this.previousData.result = result;
+    if (result.loading && options.clearPreviousDataOnLoad && !equal(this.currentObservable.query.variables, this.previousOptions.variables)) {
+      result.data = undefined;
+    }
+    return result;
   }
 
   private handleErrorOrCompleted({

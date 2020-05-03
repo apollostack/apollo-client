@@ -99,6 +99,11 @@ export interface ModifiableWatchQueryOptions<TVariables = OperationVariables>
    * Apollo Client `QueryManager` (due to a cache miss).
    */
   partialRefetch?: boolean;
+
+  /**
+   * If set to `true`, the result data will be discarded while the `refetch` query is in flight.
+   */
+  clearPreviousDataOnLoad?: boolean;
 }
 
 /**
