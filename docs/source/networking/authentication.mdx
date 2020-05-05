@@ -43,6 +43,7 @@ Another common way to identify yourself when using HTTP is to send along an auth
 
 ```js
 import { ApolloClient, createHttpLink, InMemoryCache } from '@apollo/client';
+import { setContext } from 'apollo-link-context';
 
 const httpLink = createHttpLink({
   uri: '/graphql',
