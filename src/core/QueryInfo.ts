@@ -1,20 +1,20 @@
-import { DocumentNode, GraphQLError } from 'graphql';
+import type { DocumentNode, GraphQLError } from 'graphql';
 import { equal } from "@wry/equality";
 
-import { Cache } from '../cache/core/types/Cache';
-import { ApolloCache } from '../cache/core/cache';
-import { WatchQueryOptions } from './watchQueryOptions';
-import { ObservableQuery } from './ObservableQuery';
-import { QueryListener } from './types';
-import { FetchResult } from '../link/core/types';
-import { ObservableSubscription } from '../utilities/observables/Observable';
+import type { Cache } from '../cache/core/types/Cache';
+import type { ApolloCache } from '../cache/core/cache';
+import type { WatchQueryOptions } from './watchQueryOptions';
+import type { ObservableQuery } from './ObservableQuery';
+import type { QueryListener } from './types';
+import type { FetchResult } from '../link/core/types';
+import type { ObservableSubscription } from '../utilities/observables/Observable';
 import { isNonEmptyArray } from '../utilities/common/arrays';
 import { graphQLResultHasError } from '../utilities/common/errorHandling';
 import {
   NetworkStatus,
   isNetworkRequestInFlight,
 } from './networkStatus';
-import { ApolloError } from '../errors/ApolloError';
+import type { ApolloError } from '../errors/ApolloError';
 
 export type QueryStoreValue = Pick<QueryInfo,
   | "variables"

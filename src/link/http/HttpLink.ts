@@ -1,6 +1,6 @@
 import { ApolloLink } from '../core/ApolloLink';
-import { RequestHandler } from '../core/types';
-import { HttpOptions } from './selectHttpOptionsAndBody';
+import type { RequestHandler } from '../core/types';
+import type { HttpOptions } from './selectHttpOptionsAndBody';
 import { createHttpLink } from './createHttpLink';
 
 export class HttpLink extends ApolloLink {

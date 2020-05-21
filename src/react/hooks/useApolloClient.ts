@@ -1,6 +1,6 @@
 import { invariant } from 'ts-invariant';
 
-import { ApolloClient } from '../../ApolloClient';
+import type { ApolloClient } from '../../ApolloClient';
 import { getApolloContext } from '../context/ApolloContext';
 import { requireReactLazily } from '../react';
 

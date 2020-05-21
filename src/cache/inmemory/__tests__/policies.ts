@@ -1,7 +1,7 @@
 import gql from "graphql-tag";
 
 import { InMemoryCache, ReactiveVar } from "../inMemoryCache";
-import { Reference, StoreObject } from "../../../core";
+import type { Reference, StoreObject } from "../../../core";
 import { MissingFieldError } from "../..";
 
 function reverse(s: string) {

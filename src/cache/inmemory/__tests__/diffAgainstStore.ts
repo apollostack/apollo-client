@@ -1,11 +1,11 @@
 import gql, { disableFragmentWarnings } from 'graphql-tag';
 
-import { Reference } from '../../../core';
+import type { Reference } from '../../../core';
 import { defaultNormalizedCacheFactory } from '../entityStore';
 import { StoreReader } from '../readFromStore';
 import { StoreWriter } from '../writeToStore';
 import { defaultDataIdFromObject } from '../policies';
-import { NormalizedCache } from '../types';
+import type { NormalizedCache } from '../types';
 import { Policies } from '../policies';
 
 disableFragmentWarnings();

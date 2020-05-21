@@ -1,6 +1,6 @@
-import { FieldNode } from 'graphql';
+import type { FieldNode } from 'graphql';
 
-import { NormalizedCache } from './types';
+import type { NormalizedCache } from './types';
 import {
   Reference,
   isReference,

@@ -1,8 +1,8 @@
-import { WatchQueryOptions } from './watchQueryOptions';
+import type { WatchQueryOptions } from './watchQueryOptions';
 import { NetworkStatus } from './networkStatus';
-import { ApolloQueryResult } from './types';
-import { Observer } from '../utilities/observables/Observable';
-import { Concast } from '../utilities/observables/Concast';
+import type { ApolloQueryResult } from './types';
+import type { Observer } from '../utilities/observables/Observable';
+import type { Concast } from '../utilities/observables/Concast';
 import { invariant } from 'ts-invariant';
 
 // Given that QueryManager#fetchQueryObservable returns only a single

@@ -1,7 +1,7 @@
 import { equal } from '@wry/equality';
 
 import { OperationData } from './OperationData';
-import {
+import type {
   SubscriptionCurrentObservable,
   SubscriptionDataOptions,
   SubscriptionResult

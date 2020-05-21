@@ -1,4 +1,4 @@
-import { GraphQLError } from 'graphql';
+import type { GraphQLError } from 'graphql';
 
 import { isNonEmptyArray } from '../utilities/common/arrays';
 import { ServerParseError } from '../link/http/parseAndCheckHttpResponse';

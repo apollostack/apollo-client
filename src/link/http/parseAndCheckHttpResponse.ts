@@ -1,4 +1,4 @@
-import { Operation } from '../core/types';
+import type { Operation } from '../core/types';
 import { throwServerError } from '../utils/throwServerError';
 
 const { hasOwnProperty } = Object.prototype;

@@ -1,14 +1,14 @@
 // Make builtins like Map and Set safe to use with non-extensible objects.
 import './fixPolyfills';
 
-import { DocumentNode } from 'graphql';
+import type { DocumentNode } from 'graphql';
 import { dep, wrap } from 'optimism';
 
 import { ApolloCache, Transaction } from '../core/cache';
-import { Cache } from '../core/types/Cache';
+import type { Cache } from '../core/types/Cache';
 import { addTypenameToDocument } from '../../utilities/graphql/transform';
-import { StoreObject }  from '../../utilities/graphql/storeUtils';
-import {
+import type { StoreObject }  from '../../utilities/graphql/storeUtils';
+import type {
   ApolloReducerConfig,
   NormalizedCacheObject,
 } from './types';

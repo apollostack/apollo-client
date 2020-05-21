@@ -1,4 +1,4 @@
-import { SelectionSetNode, FieldNode, DocumentNode } from 'graphql';
+import type { SelectionSetNode, FieldNode, DocumentNode } from 'graphql';
 import { InvariantError } from 'ts-invariant';
 
 import {
@@ -26,11 +26,11 @@ import {
 import { shouldInclude, hasDirectives } from '../../utilities/graphql/directives';
 import { cloneDeep } from '../../utilities/common/cloneDeep';
 
-import { Policies, ReadMergeContext } from './policies';
+import type { Policies, ReadMergeContext } from './policies';
 import { EntityStore } from './entityStore';
-import { NormalizedCache } from './types';
+import type { NormalizedCache } from './types';
 import { makeProcessedFieldsMerger, FieldValueToBeMerged } from './helpers';
-import { StoreReader } from './readFromStore';
+import type { StoreReader } from './readFromStore';
 
 export interface WriteContext extends ReadMergeContext {
   readonly store: NormalizedCache;
@@ -40,7 +40,7 @@ export interface WriteContext extends ReadMergeContext {
   readonly fragmentMap?: FragmentMap;
   // General-purpose deep-merge function for use during writes.
   merge<T>(existing: T, incoming: T): T;
-};
+}
 
 interface ProcessSelectionSetOptions {
   dataId?: string,

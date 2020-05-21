@@ -1,5 +1,5 @@
 import { assign, omit } from 'lodash';
-import {
+import type {
   SelectionNode,
   FieldNode,
   DefinitionNode,

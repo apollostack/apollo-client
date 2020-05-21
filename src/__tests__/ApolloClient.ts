@@ -7,8 +7,8 @@ import { HttpLink } from '../link/http/HttpLink';
 import { InMemoryCache } from '../cache/inmemory/inMemoryCache';
 import { stripSymbols } from '../utilities/testing/stripSymbols';
 import { ApolloClient } from '../';
-import { DefaultOptions } from '../ApolloClient';
-import { FetchPolicy, QueryOptions } from '../core/watchQueryOptions';
+import type { DefaultOptions } from '../ApolloClient';
+import type { FetchPolicy, QueryOptions } from '../core/watchQueryOptions';
 
 describe('ApolloClient', () => {
   describe('constructor', () => {

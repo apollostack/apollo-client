@@ -12,7 +12,7 @@ import { InMemoryCache } from '../../../cache/inmemory/inMemoryCache';
 import { ApolloProvider } from '../../context/ApolloProvider';
 import { useQuery } from '../useQuery';
 import { requireReactLazily } from '../../react';
-import { QueryFunctionOptions } from '../..';
+import type { QueryFunctionOptions } from '../..';
 import { NetworkStatus } from '../../../core/networkStatus';
 
 const React = requireReactLazily();

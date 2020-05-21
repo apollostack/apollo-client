@@ -1,4 +1,4 @@
-import { DataProxy } from './DataProxy';
+import type { DataProxy } from './DataProxy';
 
 export namespace Cache {
   export type WatchCallback = (diff: Cache.DiffResult<any>) => void;
@@ -33,8 +33,8 @@ export namespace Cache {
     broadcast?: boolean;
   }
 
-  export import DiffResult = DataProxy.DiffResult;
-  export import WriteQueryOptions = DataProxy.WriteQueryOptions;
-  export import WriteFragmentOptions = DataProxy.WriteFragmentOptions;
-  export import Fragment = DataProxy.Fragment;
+  export type DiffResult<T> = DataProxy.DiffResult<T>;
+  export type WriteQueryOptions<TData, TVariables> = DataProxy.WriteQueryOptions<TData, TVariables>;
+  export type WriteFragmentOptions<TData, TVariables> = DataProxy.WriteFragmentOptions<TData, TVariables>;
+  export type Fragment<TVariables> = DataProxy.Fragment<TVariables>;
 }

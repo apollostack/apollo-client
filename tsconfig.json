@@ -14,6 +14,7 @@
     "target": "es5",
     "module": "es2015",
     "esModuleInterop": true,
+    "importsNotUsedAsValues": "error",
     "outDir": "./dist",
     "lib": ["es2015", "esnext.asynciterable", "dom"],
     "jsx": "react"

@@ -1,8 +1,8 @@
-import { DocumentNode } from 'graphql';
+import type { DocumentNode } from 'graphql';
 
-import { MutationHookOptions, MutationTuple } from '../types/types';
+import type { MutationHookOptions, MutationTuple } from '../types/types';
 import { MutationData } from '../data/MutationData';
-import { OperationVariables } from '../../core/types';
+import type { OperationVariables } from '../../core/types';
 import { getApolloContext } from '../context/ApolloContext';
 import { requireReactLazily } from '../react';
 

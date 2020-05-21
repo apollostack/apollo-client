@@ -12,15 +12,15 @@ import {
 } from '../utilities/observables/Observable';
 import { iterateObserversSafely } from '../utilities/observables/iteration';
 import { ApolloError } from '../errors/ApolloError';
-import { QueryManager } from './QueryManager';
-import { ApolloQueryResult, OperationVariables } from './types';
-import {
+import type { QueryManager } from './QueryManager';
+import type { ApolloQueryResult, OperationVariables } from './types';
+import type {
   WatchQueryOptions,
   FetchMoreQueryOptions,
   SubscribeToMoreOptions,
   ErrorPolicy,
 } from './watchQueryOptions';
-import { QueryStoreValue } from './QueryInfo';
+import type { QueryStoreValue } from './QueryInfo';
 import { isNonEmptyArray } from '../utilities/common/arrays';
 import { Reobserver } from './Reobserver';
 

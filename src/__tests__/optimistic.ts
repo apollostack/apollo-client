@@ -4,15 +4,15 @@ import { assign, cloneDeep } from 'lodash';
 import gql from 'graphql-tag';
 
 import { mockSingleLink } from '../utilities/testing/mocking/mockLink';
-import { MutationQueryReducersMap } from '../core/types';
-import { ObservableSubscription as Subscription } from '../utilities/observables/Observable';
+import type { MutationQueryReducersMap } from '../core/types';
+import type { ObservableSubscription as Subscription } from '../utilities/observables/Observable';
 import { ApolloClient } from '../';
 import { addTypenameToDocument } from '../utilities/graphql/transform';
 import { makeReference } from '../core';
 import { stripSymbols } from '../utilities/testing/stripSymbols';
 import { itAsync } from '../utilities/testing/itAsync';
 import { InMemoryCache } from '../cache/inmemory/inMemoryCache';
-import { QueryManager } from '../core/QueryManager';
+import type { QueryManager } from '../core/QueryManager';
 
 describe('optimistic mutation results', () => {
   const query = gql`

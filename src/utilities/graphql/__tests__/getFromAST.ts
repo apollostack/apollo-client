@@ -1,6 +1,6 @@
 import { print } from 'graphql/language/printer';
 import gql from 'graphql-tag';
-import { FragmentDefinitionNode, OperationDefinitionNode } from 'graphql';
+import type { FragmentDefinitionNode, OperationDefinitionNode } from 'graphql';
 
 import {
   checkDocument,

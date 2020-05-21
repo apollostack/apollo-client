@@ -3,7 +3,7 @@ import { equal } from '@wry/equality';
 
 import { Observable } from '../../../utilities/observables/Observable';
 import { ApolloLink } from '../../../link/core/ApolloLink';
-import {
+import type {
   Operation,
   GraphQLRequest,
   FetchResult,

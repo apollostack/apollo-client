@@ -1,4 +1,4 @@
-import { NormalizedCacheObject, StoreObject } from '../types';
+import type { NormalizedCacheObject, StoreObject } from '../types';
 import { EntityStore } from '../entityStore';
 import { Policies } from '../policies';
 

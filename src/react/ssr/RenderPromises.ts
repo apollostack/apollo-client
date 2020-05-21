@@ -1,8 +1,8 @@
-import { DocumentNode } from 'graphql';
+import type { DocumentNode } from 'graphql';
 
-import { ObservableQuery } from '../../core/ObservableQuery';
-import { QueryDataOptions } from '../types/types';
-import { QueryData } from '../data/QueryData';
+import type { ObservableQuery } from '../../core/ObservableQuery';
+import type { QueryDataOptions } from '../types/types';
+import type { QueryData } from '../data/QueryData';
 
 type QueryInfo = {
   seen: boolean;

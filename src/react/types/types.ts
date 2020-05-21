@@ -1,24 +1,24 @@
-import { ReactNode } from 'react';
-import { DocumentNode } from 'graphql';
+import type { ReactNode } from 'react';
+import type { DocumentNode } from 'graphql';
 
-import { Observable } from '../../utilities/observables/Observable';
-import { FetchResult } from '../../link/core/types';
-import { ApolloClient } from '../../ApolloClient';
-import {
+import type { Observable } from '../../utilities/observables/Observable';
+import type { FetchResult } from '../../link/core/types';
+import type { ApolloClient } from '../../ApolloClient';
+import type {
   ApolloQueryResult,
   PureQueryOptions,
   OperationVariables
 } from '../../core/types';
-import { ApolloError } from '../../errors/ApolloError';
-import {
+import type { ApolloError } from '../../errors/ApolloError';
+import type {
   FetchPolicy,
   WatchQueryFetchPolicy,
   ErrorPolicy,
   FetchMoreQueryOptions,
   MutationUpdaterFn,
 } from '../../core/watchQueryOptions';
-import { FetchMoreOptions, ObservableQuery } from '../../core/ObservableQuery';
-import { NetworkStatus } from '../../core/networkStatus';
+import type { FetchMoreOptions, ObservableQuery } from '../../core/ObservableQuery';
+import type { NetworkStatus } from '../../core/networkStatus';
 
 /* Common types */
 

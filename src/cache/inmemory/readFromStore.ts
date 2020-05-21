@@ -1,4 +1,4 @@
-import {
+import type {
   DocumentNode,
   FieldNode,
   FragmentDefinitionNode,
@@ -28,15 +28,15 @@ import {
 } from '../../utilities/graphql/getFromAST';
 import { maybeDeepFreeze } from '../../utilities/common/maybeDeepFreeze';
 import { mergeDeepArray } from '../../utilities/common/mergeDeep';
-import { Cache } from '../core/types/Cache';
-import {
+import type { Cache } from '../core/types/Cache';
+import type {
   DiffQueryAgainstStoreOptions,
   ReadQueryOptions,
   NormalizedCache,
 } from './types';
 import { supportsResultCaching } from './entityStore';
 import { getTypenameFromStoreObject } from './helpers';
-import { Policies, ReadMergeContext } from './policies';
+import type { Policies, ReadMergeContext } from './policies';
 import { MissingFieldError } from '../core/types/common';
 
 export type VariableMap = { [name: string]: any };

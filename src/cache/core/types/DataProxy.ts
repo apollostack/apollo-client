@@ -1,6 +1,6 @@
-import { DocumentNode } from 'graphql'; // eslint-disable-line import/no-extraneous-dependencies, import/no-unresolved
+import type { DocumentNode } from 'graphql'; // eslint-disable-line import/no-extraneous-dependencies, import/no-unresolved
 
-import { MissingFieldError } from './common';
+import type { MissingFieldError } from './common';
 
 export namespace DataProxy {
   export interface Query<TVariables> {

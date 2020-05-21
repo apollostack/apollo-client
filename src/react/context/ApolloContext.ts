@@ -1,4 +1,4 @@
-import { ApolloClient } from '../../ApolloClient';
+import type { ApolloClient } from '../../ApolloClient';
 import { requireReactLazily } from '../react';
 
 export interface ApolloContextValue {

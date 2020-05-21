@@ -1,9 +1,9 @@
-import { DocumentNode } from 'graphql';
+import type { DocumentNode } from 'graphql';
 
-import { ApolloCache } from '../cache/core/cache';
-import { FetchResult } from '../link/core/types';
-import { MutationQueryReducersMap } from './types';
-import { PureQueryOptions, OperationVariables } from './types';
+import type { ApolloCache } from '../cache/core/cache';
+import type { FetchResult } from '../link/core/types';
+import type { MutationQueryReducersMap } from './types';
+import type { PureQueryOptions, OperationVariables } from './types';
 
 /**
  * fetchPolicy determines where the client may return a result from. The options are:

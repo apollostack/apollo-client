@@ -7,9 +7,9 @@ import { ApolloLink } from '../../core/ApolloLink';
 import { execute } from '../../core/execute';
 import { HttpLink } from '../HttpLink';
 import { createHttpLink } from '../createHttpLink';
-import { ClientParseError } from '../serializeFetchParameter';
-import { ServerParseError } from '../parseAndCheckHttpResponse';
-import { ServerError } from '../../..';
+import type { ClientParseError } from '../serializeFetchParameter';
+import type { ServerParseError } from '../parseAndCheckHttpResponse';
+import type { ServerError } from '../../..';
 import DoneCallback = jest.DoneCallback;
 
 const sampleQuery = gql`

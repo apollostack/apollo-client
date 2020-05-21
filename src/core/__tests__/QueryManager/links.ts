@@ -11,7 +11,7 @@ import { MockSubscriptionLink } from '../../../utilities/testing/mocking/mockSub
 
 // core
 import { QueryManager } from '../../QueryManager';
-import { NextLink, Operation, Reference } from '../../../core';
+import type { NextLink, Operation, Reference } from '../../../core';
 
 describe('Link interactions', () => {
   it('includes the cache on the context for eviction links', done => {

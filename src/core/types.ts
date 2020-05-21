@@ -1,9 +1,9 @@
-import { DocumentNode, GraphQLError } from 'graphql';
+import type { DocumentNode, GraphQLError } from 'graphql';
 
-import { FetchResult } from '../link/core/types';
-import { QueryInfo } from './QueryInfo';
-import { NetworkStatus } from './networkStatus';
-import { Resolver } from './LocalState';
+import type { FetchResult } from '../link/core/types';
+import type { QueryInfo } from './QueryInfo';
+import type { NetworkStatus } from './networkStatus';
+import type { Resolver } from './LocalState';
 
 export type QueryListener = (queryInfo: QueryInfo) => void;
 

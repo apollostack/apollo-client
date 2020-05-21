@@ -1,6 +1,6 @@
 import { InvariantError } from 'ts-invariant';
 
-import { GraphQLRequest } from '../core/types';
+import type { GraphQLRequest } from '../core/types';
 
 export function validateOperation(operation: GraphQLRequest): GraphQLRequest {
   const OPERATION_FIELDS = [

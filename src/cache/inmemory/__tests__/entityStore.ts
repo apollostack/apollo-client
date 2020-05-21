@@ -1,11 +1,11 @@
 import gql from 'graphql-tag';
 import { EntityStore, supportsResultCaching } from '../entityStore';
 import { InMemoryCache } from '../inMemoryCache';
-import { DocumentNode } from 'graphql';
+import type { DocumentNode } from 'graphql';
 import { Policies } from '../policies';
-import { StoreObject } from '../types';
-import { ApolloCache } from '../../core/cache';
-import { Reference } from '../../../utilities/graphql/storeUtils';
+import type { StoreObject } from '../types';
+import type { ApolloCache } from '../../core/cache';
+import type { Reference } from '../../../utilities/graphql/storeUtils';
 import { MissingFieldError } from '../..';
 
 describe('EntityStore', () => {

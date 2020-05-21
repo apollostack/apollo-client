@@ -1,4 +1,4 @@
-import { GraphQLRequest, Operation } from '../core/types';
+import type { GraphQLRequest, Operation } from '../core/types';
 import { getOperationName } from '../../utilities/graphql/getFromAST';
 
 export function transformOperation(operation: GraphQLRequest): GraphQLRequest {

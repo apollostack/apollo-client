@@ -11,11 +11,11 @@ import {
 import { DeepMerger } from '../../utilities/common/mergeDeep';
 import { maybeDeepFreeze } from '../../utilities/common/maybeDeepFreeze';
 import { canUseWeakMap } from '../../utilities/common/canUse';
-import { NormalizedCache, NormalizedCacheObject } from './types';
+import type { NormalizedCache, NormalizedCacheObject } from './types';
 import { hasOwn, fieldNameFromStoreName } from './helpers';
 import { Policies } from './policies';
-import { SafeReadonly } from '../core/types/common';
-import { Cache } from '../core/types/Cache';
+import type { SafeReadonly } from '../core/types/common';
+import type { Cache } from '../core/types/Cache';
 
 export abstract class EntityStore implements NormalizedCache {
   protected data: NormalizedCacheObject = Object.create(null);

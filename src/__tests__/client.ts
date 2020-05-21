@@ -6,13 +6,13 @@ import { Observable, ObservableSubscription } from '../utilities/observables/Obs
 import { ApolloLink } from '../link/core/ApolloLink';
 import { InMemoryCache } from '../cache/inmemory/inMemoryCache';
 import { stripSymbols } from '../utilities/testing/stripSymbols';
-import { FetchPolicy, WatchQueryFetchPolicy, QueryOptions } from '../core/watchQueryOptions';
-import { ApolloError } from '../errors/ApolloError';
+import type { FetchPolicy, WatchQueryFetchPolicy, QueryOptions } from '../core/watchQueryOptions';
+import type { ApolloError } from '../errors/ApolloError';
 import { ApolloClient } from '..';
 import subscribeAndCount from '../utilities/testing/subscribeAndCount';
 import { itAsync } from '../utilities/testing/itAsync';
 import { mockSingleLink } from '../utilities/testing/mocking/mockLink';
-import { ObservableQuery, PossibleTypesMap } from '../core';
+import type { ObservableQuery, PossibleTypesMap } from '../core';
 
 describe('client', () => {
   it('can be loaded via require', () => {

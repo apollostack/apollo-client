@@ -1,10 +1,10 @@
-import { DocumentNode } from 'graphql';
+import type { DocumentNode } from 'graphql';
 import { equal } from '@wry/equality';
 import { invariant } from 'ts-invariant';
 
-import { ApolloClient } from '../../ApolloClient';
+import type { ApolloClient } from '../../ApolloClient';
 import { DocumentType, parser, operationName } from '../parser/parser';
-import { CommonOptions } from '../types/types';
+import type { CommonOptions } from '../types/types';
 
 export abstract class OperationData<TOptions = any> {
   public isMounted: boolean = false;

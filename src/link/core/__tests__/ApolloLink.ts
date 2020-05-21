@@ -2,9 +2,9 @@ import gql from 'graphql-tag';
 import { print } from 'graphql/language/printer';
 
 import { Observable } from '../../../utilities/observables/Observable';
-import { FetchResult, Operation, NextLink, GraphQLRequest } from '../types';
+import type { FetchResult, Operation, NextLink, GraphQLRequest } from '../types';
 import { ApolloLink } from '../ApolloLink';
-import { DocumentNode } from 'graphql';
+import type { DocumentNode } from 'graphql';
 
 export class SetContextLink extends ApolloLink {
   constructor(

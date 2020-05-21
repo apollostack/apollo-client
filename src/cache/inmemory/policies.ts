@@ -1,4 +1,4 @@
-import {
+import type {
   InlineFragmentNode,
   FragmentDefinitionNode,
   SelectionSetNode,
@@ -24,15 +24,15 @@ import {
   getStoreKeyName,
 } from '../../utilities/graphql/storeUtils';
 import { canUseWeakMap } from '../../utilities/common/canUse';
-import { IdGetter } from "./types";
+import type { IdGetter } from "./types";
 import {
   fieldNameFromStoreName,
   FieldValueToBeMerged,
   isFieldValueToBeMerged,
   storeValueIsStoreObject,
 } from './helpers';
-import { FieldValueGetter, ToReferenceFunction } from './entityStore';
-import { SafeReadonly } from '../core/types/common';
+import type { FieldValueGetter, ToReferenceFunction } from './entityStore';
+import type { SafeReadonly } from '../core/types/common';
 
 const hasOwn = Object.prototype.hasOwnProperty;
 

@@ -1,4 +1,4 @@
-import { GraphQLRequest, Operation } from '../core/types';
+import type { GraphQLRequest, Operation } from '../core/types';
 
 export function createOperation(
   starting: any,

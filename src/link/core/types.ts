@@ -1,8 +1,8 @@
-import { DocumentNode } from 'graphql/language/ast';
-import { ExecutionResult } from 'graphql/execution/execute';
+import type { DocumentNode } from 'graphql/language/ast';
+import type { ExecutionResult } from 'graphql/execution/execute';
 export { DocumentNode };
 
-import { Observable } from '../../utilities/observables/Observable';
+import type { Observable } from '../../utilities/observables/Observable';
 
 export interface GraphQLRequest {
   query: DocumentNode;

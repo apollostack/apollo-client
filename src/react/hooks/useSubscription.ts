@@ -1,8 +1,8 @@
-import { DocumentNode } from 'graphql';
+import type { DocumentNode } from 'graphql';
 
-import { SubscriptionHookOptions } from '../types/types';
+import type { SubscriptionHookOptions } from '../types/types';
 import { SubscriptionData } from '../data/SubscriptionData';
-import { OperationVariables } from '../../core/types';
+import type { OperationVariables } from '../../core/types';
 import { getApolloContext } from '../context/ApolloContext';
 import { requireReactLazily } from '../react';
 

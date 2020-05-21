@@ -1,7 +1,7 @@
 import { InvariantError, invariant } from 'ts-invariant';
 
 import { Observable } from '../../utilities/observables/Observable';
-import {
+import type {
   NextLink,
   Operation,
   RequestHandler,

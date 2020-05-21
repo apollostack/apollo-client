@@ -1,4 +1,4 @@
-import { DocumentNode } from 'graphql';
+import type { DocumentNode } from 'graphql';
 
 export class MutationStore {
   private store: { [mutationId: string]: MutationStoreValue } = {};

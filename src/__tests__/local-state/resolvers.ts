@@ -1,5 +1,5 @@
 import gql from 'graphql-tag';
-import { DocumentNode, ExecutionResult } from 'graphql';
+import type { DocumentNode, ExecutionResult } from 'graphql';
 import { assign } from 'lodash';
 
 import { Observable, Observer } from '../../utilities/observables/Observable';
@@ -8,8 +8,8 @@ import { ApolloClient } from '../..';
 import mockQueryManager from '../../utilities/testing/mocking/mockQueryManager';
 import wrap from '../../utilities/testing/wrap';
 import { itAsync } from '../../utilities/testing/itAsync';
-import { ApolloQueryResult, Resolvers } from '../../core/types';
-import { WatchQueryOptions } from '../../core/watchQueryOptions';
+import type { ApolloQueryResult, Resolvers } from '../../core/types';
+import type { WatchQueryOptions } from '../../core/watchQueryOptions';
 import { LocalState } from '../../core/LocalState';
 import { InMemoryCache } from '../../cache/inmemory/inMemoryCache';
 

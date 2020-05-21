@@ -1,4 +1,4 @@
-import { DefinitionNode } from 'graphql';
+import type { DefinitionNode } from 'graphql';
 
 import { Observable } from '../../utilities/observables/Observable';
 import { serializeFetchParameter } from './serializeFetchParameter';

@@ -1,4 +1,4 @@
-import { Observer } from "./Observable";
+import type { Observer } from "./Observable";
 
 export function iterateObserversSafely<E, A>(
   observers: Set<Observer<E>>,

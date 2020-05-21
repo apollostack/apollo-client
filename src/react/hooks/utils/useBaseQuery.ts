@@ -1,6 +1,6 @@
-import { DocumentNode } from 'graphql';
+import type { DocumentNode } from 'graphql';
 
-import {
+import type {
   QueryHookOptions,
   QueryDataOptions,
   QueryTuple,
@@ -8,7 +8,7 @@ import {
 } from '../../types/types';
 import { QueryData } from '../../data/QueryData';
 import { useDeepMemo } from './useDeepMemo';
-import { OperationVariables } from '../../../core/types';
+import type { OperationVariables } from '../../../core/types';
 import { getApolloContext } from '../../context/ApolloContext';
 import { requireReactLazily } from '../../react';
 

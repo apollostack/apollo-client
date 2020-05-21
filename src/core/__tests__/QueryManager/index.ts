@@ -7,9 +7,9 @@ import { DocumentNode, GraphQLError } from 'graphql';
 
 import { Observable, Observer } from '../../../utilities/observables/Observable';
 import { ApolloLink } from '../../../link/core/ApolloLink';
-import { GraphQLRequest, FetchResult } from '../../../link/core/types';
+import type { GraphQLRequest, FetchResult } from '../../../link/core/types';
 import { InMemoryCache } from '../../../cache/inmemory/inMemoryCache';
-import {
+import type {
   ApolloReducerConfig,
   NormalizedCacheObject
 } from '../../../cache/inmemory/types';
@@ -20,13 +20,13 @@ import mockWatchQuery from '../../../utilities/testing/mocking/mockWatchQuery';
 import { MockApolloLink, mockSingleLink } from '../../../utilities/testing/mocking/mockLink';
 
 // core
-import { ApolloQueryResult } from '../../types';
+import type { ApolloQueryResult } from '../../types';
 import { NetworkStatus } from '../../networkStatus';
-import { ObservableQuery } from '../../ObservableQuery';
-import { MutationBaseOptions, MutationOptions, WatchQueryOptions } from '../../watchQueryOptions';
+import type { ObservableQuery } from '../../ObservableQuery';
+import type { MutationBaseOptions, MutationOptions, WatchQueryOptions } from '../../watchQueryOptions';
 import { QueryManager } from '../../QueryManager';
 
-import { ApolloError } from '../../../errors/ApolloError';
+import type { ApolloError } from '../../../errors/ApolloError';
 
 // testing utils
 import wrap from '../../../utilities/testing/wrap';

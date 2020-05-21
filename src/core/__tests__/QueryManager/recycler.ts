@@ -14,7 +14,7 @@ import {
 
 // core
 import { QueryManager } from '../../QueryManager';
-import { ObservableQuery } from '../../ObservableQuery';
+import type { ObservableQuery } from '../../ObservableQuery';
 
 describe('Subscription lifecycles', () => {
   it('cleans up and reuses data like QueryRecycler wants', done => {

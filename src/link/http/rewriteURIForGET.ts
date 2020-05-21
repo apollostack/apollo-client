@@ -1,5 +1,5 @@
 import { serializeFetchParameter } from './serializeFetchParameter';
-import { Body } from './selectHttpOptionsAndBody';
+import type { Body } from './selectHttpOptionsAndBody';
 
 // For GET operations, returns the given URI rewritten with parameters, or a
 // parse error.

@@ -1,9 +1,9 @@
-import { DocumentNode } from 'graphql';
+import type { DocumentNode } from 'graphql';
 
-import { Transaction } from '../core/cache';
-import { StoreValue, StoreObject } from '../../utilities/graphql/storeUtils';
-import { FieldValueGetter, ToReferenceFunction } from './entityStore';
-import { KeyFieldsFunction } from './policies';
+import type { Transaction } from '../core/cache';
+import type { StoreValue, StoreObject } from '../../utilities/graphql/storeUtils';
+import type { FieldValueGetter, ToReferenceFunction } from './entityStore';
+import type { KeyFieldsFunction } from './policies';
 export { StoreObject, StoreValue }
 
 export interface IdGetterObj extends Object {

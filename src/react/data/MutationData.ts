@@ -2,15 +2,15 @@ import { equal } from '@wry/equality';
 
 import { DocumentType } from '../parser/parser';
 import { ApolloError } from '../../errors/ApolloError';
-import {
+import type {
   MutationDataOptions,
   MutationTuple,
   MutationFunctionOptions,
   MutationResult
 } from '../types/types';
 import { OperationData } from './OperationData';
-import { OperationVariables } from '../../core/types';
-import { FetchResult } from '../../link/core/types';
+import type { OperationVariables } from '../../core/types';
+import type { FetchResult } from '../../link/core/types';
 
 export class MutationData<
   TData = any,

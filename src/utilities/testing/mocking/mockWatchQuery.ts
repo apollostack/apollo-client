@@ -1,6 +1,6 @@
-import { MockedResponse } from './mockLink';
+import type { MockedResponse } from './mockLink';
 import mockQueryManager from './mockQueryManager';
-import { ObservableQuery } from '../../../core/ObservableQuery';
+import type { ObservableQuery } from '../../../core/ObservableQuery';
 
 export default (
   reject: (reason: any) => any,

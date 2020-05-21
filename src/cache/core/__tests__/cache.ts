@@ -1,6 +1,6 @@
 import gql from 'graphql-tag';
 import { ApolloCache  } from '../cache';
-import { Cache, DataProxy } from '../..';
+import type { Cache, DataProxy } from '../..';
 
 class TestCache extends ApolloCache<unknown> {
   constructor() {

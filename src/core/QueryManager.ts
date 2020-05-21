@@ -1,11 +1,11 @@
-import { DocumentNode } from 'graphql';
+import type { DocumentNode } from 'graphql';
 import { invariant, InvariantError } from 'ts-invariant';
 import { equal } from '@wry/equality';
 
-import { ApolloLink } from '../link/core/ApolloLink';
+import type { ApolloLink } from '../link/core/ApolloLink';
 import { execute } from '../link/core/execute';
-import { FetchResult } from '../link/core/types';
-import { Cache } from '../cache/core/types/Cache';
+import type { FetchResult } from '../link/core/types';
+import type { Cache } from '../cache/core/types/Cache';
 
 import {
   getDefaultValues,
@@ -27,7 +27,7 @@ import {
   Observable,
 } from '../utilities/observables/Observable';
 import { MutationStore } from '../data/mutations';
-import {
+import type {
   QueryOptions,
   WatchQueryOptions,
   SubscriptionOptions,
@@ -37,7 +37,7 @@ import {
 } from './watchQueryOptions';
 import { ObservableQuery } from './ObservableQuery';
 import { NetworkStatus, isNetworkRequestInFlight } from './networkStatus';
-import {
+import type {
   QueryListener,
   ApolloQueryResult,
   OperationVariables,
@@ -50,7 +50,7 @@ import {
   ConcastSourcesIterable,
 } from '../utilities/observables/Concast';
 import { isNonEmptyArray } from '../utilities/common/arrays';
-import { ApolloCache } from '../cache/core/cache';
+import type { ApolloCache } from '../cache/core/cache';
 
 import { QueryInfo, QueryStoreValue } from './QueryInfo';
 

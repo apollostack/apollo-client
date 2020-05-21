@@ -8,7 +8,7 @@ import mockQueryManager from '../../utilities/testing/mocking/mockQueryManager';
 import mockWatchQuery from '../../utilities/testing/mocking/mockWatchQuery';
 import { mockSingleLink } from '../../utilities/testing/mocking/mockLink';
 
-import { ObservableQuery } from '../ObservableQuery';
+import type { ObservableQuery } from '../ObservableQuery';
 import { NetworkStatus } from '../networkStatus';
 import { QueryManager } from '../QueryManager';
 import { ApolloClient, NormalizedCacheObject } from '../../';

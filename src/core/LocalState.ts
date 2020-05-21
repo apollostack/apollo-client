@@ -1,4 +1,4 @@
-import {
+import type {
   DocumentNode,
   OperationDefinitionNode,
   SelectionSetNode,
@@ -11,7 +11,7 @@ import {
 import { visit, BREAK } from 'graphql/language/visitor';
 import { invariant } from 'ts-invariant';
 
-import { ApolloCache } from '../cache/core/cache';
+import type { ApolloCache } from '../cache/core/cache';
 import {
   getMainDefinition,
   getFragmentDefinitions,
@@ -30,9 +30,9 @@ import {
   isInlineFragment,
   StoreObject,
 } from '../utilities/graphql/storeUtils';
-import { ApolloClient } from '../ApolloClient';
-import { Resolvers, OperationVariables } from './types';
-import { FetchResult } from '../link/core/types';
+import type { ApolloClient } from '../ApolloClient';
+import type { Resolvers, OperationVariables } from './types';
+import type { FetchResult } from '../link/core/types';
 
 export type Resolver = (
   rootValue?: any,

@@ -1,10 +1,10 @@
-import { DocumentNode } from 'graphql';
+import type { DocumentNode } from 'graphql';
 import { wrap } from 'optimism';
 
 import { getFragmentQueryDocument } from '../../utilities/graphql/fragments';
-import { StoreObject } from '../../utilities/graphql/storeUtils';
-import { DataProxy } from './types/DataProxy';
-import { Cache } from './types/Cache';
+import type { StoreObject } from '../../utilities/graphql/storeUtils';
+import type { DataProxy } from './types/DataProxy';
+import type { Cache } from './types/Cache';
 
 export type Transaction<T> = (c: ApolloCache<T>) => void;
 
@@ -77,7 +77,7 @@ export abstract class ApolloCache<TSerialized> implements DataProxy {
   public identify(object: StoreObject): string | undefined {
     return;
   }
-  
+
   public gc(): string[] {
     return [];
   }
