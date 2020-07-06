@@ -343,7 +343,8 @@ export class ApolloClient<TCacheShape> implements DataProxy {
   /**
    * This resolves a single mutation according to the options specified and returns a
    * {@link Promise} which is either resolved with the resulting data or rejected with an
-   * error.
+   * error. In some cases `data` might be undefined, for example when `errorPolicy` is set
+   * to `'ignore'`.
    *
    * It takes options as an object with the following keys and values:
    */
