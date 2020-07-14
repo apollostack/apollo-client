@@ -549,19 +549,24 @@ In this example, we're using `client.onResetStore` to write default values to th
 
 ```js
 import { ApolloClient, InMemoryCache } from '@apollo/client';
-import { withClientState } from 'apollo-link-state';
 
 import { resolvers, defaults } from './resolvers';
 
 const cache = new InMemoryCache();
-const stateLink = withClientState({ cache, resolvers, defaults });
 
 const client = new ApolloClient({
   cache,
   link: stateLink,
+  defaults,
 });
 
-client.onResetStore(stateLink.writeDefaults);
+client.onResetStore(() => 
+  cache.writeQuery({
+    query: gql`{ cachedData}`,
+    data: {
+      cachedData: defaults
+      }
+}));
 ```
 
 You can also call `client.onResetStore` from your React components. This can be useful if you would like to force your UI to rerender after the store has been reset.
