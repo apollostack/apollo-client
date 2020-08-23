@@ -56,6 +56,39 @@ const cache = new InMemoryCache({
 });
 ```
 
+If a field requires numerous parameters then each parameter must be wrapped in a variable that is then destructured and returned. 
+Each parameter will be available as individual sub-fields.
+
+The following `read` function assigns a default value of `UNKNOWN FIRST_NAME` to the `first_name` sub-field of a `fullName` field and a `UNKNOWN LAST_NAME` to the `last_name` of a `fullName` field.
+
+```ts
+const cache = new InMemoryCache({
+  typePolicies: {
+    Person: {
+      fields: {
+        fullName: {
+          read(full_name = { first_name:  "UNKNOWN FIRST_NAME", last_name: "UNKNOWN LAST_NAME" }) {
+            return { ...full_name };
+          }
+        },
+      },
+    },
+  },
+});
+```
+
+The following `query` returns the `first_name` and `last_name` sub-fields from the `fullName` field. 
+
+```graphql
+query personWithFullName {
+  fullName {
+    first_name
+    last_name
+  }
+}
+
+```
+
 If a field accepts arguments, the second parameter includes the values of those arguments. The following `read` function checks to see if the `maxLength` argument is provided when the `name` field is queried. If it is, the function returns only the first `maxLength` characters of the person's name. Otherwise, the person's full name is returned.
 
 ```ts
