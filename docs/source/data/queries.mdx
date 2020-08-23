@@ -219,23 +219,25 @@ The `useLazyQuery` hook is perfect for executing queries in response to events
 other than component rendering. This hook acts just like `useQuery`, with one key exception: when `useLazyQuery` is called, it does _not_ immediately execute its associated query. Instead, it returns a function in its result tuple that you can call whenever you're ready to execute the query:
 
 ```jsx:title=index.js
-import React, { useState } from 'react';
-import { useLazyQuery } from '@apollo/client';
+import React, { useState, useEffect } from "react";
+import { useLazyQuery } from "@apollo/client";
 
 function DelayedQuery() {
   const [dog, setDog] = useState(null);
   const [getDog, { loading, data }] = useLazyQuery(GET_DOG_PHOTO);
 
-  if (loading) return <p>Loading ...</p>;
+  useEffect(() => {
+    if (data && data.dog) {
+      setDog(data.dog);
+    }
+  }, [data]);
 
-  if (data && data.dog) {
-    setDog(data.dog);
-  }
+  if (loading) return <p>Loading ...</p>;
 
   return (
     <div>
       {dog && <img src={dog.displayImage} />}
-      <button onClick={() => getDog({ variables: { breed: 'bulldog' } })}>
+      <button onClick={() => getDog({ variables: { breed: "bulldog" } })}>
         Click me!
       </button>
     </div>
