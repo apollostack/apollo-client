@@ -75,15 +75,30 @@ export type ObservableQueryFields<TData, TVariables> = Pick<
     ) => Promise<ApolloQueryResult<TData2>>);
 };
 
-export interface QueryResult<TData = any, TVariables = OperationVariables>
-  extends ObservableQueryFields<TData, TVariables> {
+export type QueryResult<
+  TData = any,
+  TVariables = OperationVariables
+> = ObservableQueryFields<TData, TVariables> & {
   client: ApolloClient<any>;
-  data: TData | undefined;
-  error?: ApolloError;
-  loading: boolean;
   networkStatus: NetworkStatus;
   called: true;
-}
+} & (
+    | {
+        data?: TData;
+        error?: ApolloError;
+        loading: true;
+      }
+    | {
+        data?: TData;
+        error: ApolloError;
+        loading: false;
+      }
+    | {
+        data: TData;
+        error: undefined;
+        loading: false;
+      }
+  );
 
 export interface QueryDataOptions<TData = any, TVariables = OperationVariables>
   extends QueryFunctionOptions<TData, TVariables> {
