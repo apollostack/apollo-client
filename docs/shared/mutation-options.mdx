@@ -7,7 +7,7 @@
 | `optimisticResponse` | Object | Provide a [mutation response](/performance/optimistic-ui/) before the result comes back from the server |
 | `refetchQueries` | Array&lt;string\|{ query: DocumentNode, variables?: TVariables}&gt; \| ((mutationResult: FetchResult) => Array&lt;string\|{ query: DocumentNode, variables?: TVariables}&gt;) | An array or function that allows you to specify which queries you want to refetch after a mutation has occurred. Array values can either be queries (with optional variables) or just the string names of queries to be refeteched. |
 | `awaitRefetchQueries` | boolean | Queries refetched as part of `refetchQueries` are handled asynchronously, and are not waited on before the mutation is completed (resolved). Setting this to `true` will make sure refetched queries are completed before the mutation is considered done. `false` by default. |
-| `onCompleted` | (data: TData) => void | A callback executed once your mutation successfully completes |
+| `onCompleted` | (data: TData) => void | A callback executed once your mutation completes |
 | `onError` | (error: ApolloError) => void | A callback executed in the event of an error. |
 | `context` | Record&lt;string, any&gt; | Shared context between your component and your network interface (Apollo Link). |
 | `client` | ApolloClient | An `ApolloClient` instance. By default `useMutation` / `Mutation` uses the client passed down via context, but a different client can be passed in. |
