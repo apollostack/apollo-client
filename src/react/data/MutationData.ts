@@ -47,7 +47,8 @@ export class MutationData<
     this.verifyDocumentType(this.getOptions().mutation, DocumentType.Mutation);
     return [
       this.runMutation,
-      { ...result, client: this.refreshClient().client }
+      { ...result, client: this.refreshClient().client },
+      this.resetMutation
     ] as MutationTuple<TData, TVariables>;
   }
 
@@ -78,6 +79,21 @@ export class MutationData<
         this.onMutationError(error, mutationId);
         if (!this.getOptions().onError) throw error;
       });
+  };
+
+  private resetMutation = () => {
+    if (this.previousResult.loading) {
+      // TODO: is it OK to do nothing with pending mutation, or should it be aborted?
+      return;
+    }
+    if (!this.getOptions().ignoreResults) {
+      this.updateResult({
+        loading: false,
+        error: undefined,
+        data: undefined,
+        called: false
+      });
+    }
   };
 
   private mutate(
@@ -155,8 +171,8 @@ export class MutationData<
       this.isMounted &&
       (!this.previousResult || !equal(this.previousResult, result))
     ) {
-      this.setResult(result);
       this.previousResult = result;
+      this.setResult(result);
     }
   }
 }

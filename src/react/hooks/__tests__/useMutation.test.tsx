@@ -373,6 +373,118 @@ describe('useMutation Hook', () => {
     });
   });
 
+  describe('Reset mutation', () => {
+    it('should reset finished mutation properly', async () => {
+      const variables = {
+        description: 'Get milk!'
+      };
+
+      const mocks = [
+        {
+          request: {
+            query: CREATE_TODO_MUTATION,
+            variables
+          },
+          result: { data: CREATE_TODO_RESULT }
+        }
+      ];
+
+      let renderCount = 0;
+      const Component = () => {
+        const [createTodo, { loading, data, error, called }, resetCreateTodoMutation] = useMutation(
+            CREATE_TODO_MUTATION
+        );
+        switch (renderCount) {
+          case 0:
+            expect(loading).toBeFalsy();
+            expect(data).toBeUndefined();
+            createTodo({ variables });
+            break;
+          case 1:
+            expect(loading).toBeTruthy();
+            expect(data).toBeUndefined();
+            break;
+          case 2:
+            expect(loading).toBeFalsy();
+            expect(data).toEqual(CREATE_TODO_RESULT);
+            resetCreateTodoMutation();
+            break;
+          case 3:
+            expect(loading).toBeFalsy();
+            expect(data).toBeUndefined();
+            expect(error).toBeUndefined();
+            expect(called).toBeFalsy();
+          default:
+        }
+        renderCount += 1;
+        return null;
+      };
+
+      render(
+          <MockedProvider mocks={mocks}>
+            <Component />
+          </MockedProvider>
+      );
+
+      return wait(() => {
+        expect(renderCount).toBe(4);
+      });
+    });
+
+    it('should not reset pending mutation', async () => {
+      const variables = {
+        description: 'Get milk!'
+      };
+
+      const mocks = [
+        {
+          request: {
+            query: CREATE_TODO_MUTATION,
+            variables
+          },
+          result: { data: CREATE_TODO_RESULT }
+        }
+      ];
+
+      let renderCount = 0;
+      const Component = () => {
+        const [createTodo, { loading, data }, resetCreateTodoMutation] = useMutation(
+            CREATE_TODO_MUTATION
+        );
+        switch (renderCount) {
+          case 0:
+            expect(loading).toBeFalsy();
+            expect(data).toBeUndefined();
+            createTodo({ variables });
+            break;
+          case 1:
+            expect(loading).toBeTruthy();
+            expect(data).toBeUndefined();
+            resetCreateTodoMutation();
+            break;
+          case 2:
+            expect(loading).toBeFalsy();
+            expect(data).toEqual(CREATE_TODO_RESULT);
+            break;
+          default:
+        }
+        renderCount += 1;
+        return null;
+      };
+
+      render(
+          <MockedProvider mocks={mocks}>
+            <Component />
+          </MockedProvider>
+      );
+
+      return wait(() => {
+        expect(renderCount).toBe(3);
+      });
+    });
+  });
+
+
   describe('Optimistic response', () => {
     itAsync('should support optimistic response handling', async (resolve, reject) => {
       const optimisticResponse = {

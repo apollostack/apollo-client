@@ -215,7 +215,8 @@ export type MutationTuple<TData, TVariables> = [
   (
     options?: MutationFunctionOptions<TData, TVariables>
   ) => Promise<FetchResult<TData>>,
-  MutationResult<TData>
+  MutationResult<TData>,
+  () => void
 ];
 
 /* Subscription types */
