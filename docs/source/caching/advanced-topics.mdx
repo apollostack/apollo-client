@@ -366,3 +366,65 @@ persistCache({
 ```
 
 For more advanced usage, such as persisting the cache when the app is in the background, and additional configuration options, please check the [README of `apollo-cache-persist`](https://github.com/apollographql/apollo-cache-persist).
+
+## Code splitting
+
+Depending on the complexity and size of your cache type/field policies, you might not always want to define them up front, when you create your initial `InMemoryCache` instance. If you have type/field policies that are only needed in a specific part of your application, you can leverage `InMemoryCache`'s `.policies.addTypePolicies()` method to adjust your cache policy map at any point. This can be really useful when leveraging techniques like route based code-splitting, using a tool like [`react-loadable`](https://www.npmjs.com/package/react-loadable).
+
+Let's say we're building a messaging app and have a `/stats` route that is used to return the total number of messages stored locally. If we use `react-loadable` to load our `Stats` component like:
+
+```jsx
+import Loadable from 'react-loadable';
+
+import Loading from './components/Loading';
+
+export const Stats = Loadable({
+  loader: () => import('./components/stats/Stats'),
+  loading: Loading,
+});
+```
+
+and wait until our `Stats` component is called to add a new type/field policy (using `cache.policies.addTypePolicies()`):
+
+```jsx:title=Stats.jsx
+import React from "react";
+import { useApolloClient, useQuery, gql } from "@apollo/client";
+
+const GET_MESSAGE_COUNT = gql`
+  {
+    messageCount @client {
+      total
+    }
+  }
+`;
+
+const newPolicy = {
+  Query: {
+    fields: {
+      messageCount() {
+        // calculate and return the number of messages stored locally ...
+        return {
+          total: 123,
+        };
+      },
+    },
+  },
+};
+
+export function Stats() {
+  const client = useApolloClient();
+  client.cache.policies.addTypePolicies(newPolicy);
+
+  const { loading, data: { messageCount } } = useQuery(GET_MESSAGE_COUNT);
+
+  if (loading) return "Loading ...";
+
+  return (
+    <p>
+      Total number of messages: {messageCount.total}
+    </p>
+  );
+};
+```
+
+our type/field policy code will only be included in the bundle a user downloads when (if) they access `/stats`. It won't be included in the initial application bundle, which helps keep the size of our initial bundle down, and ultimately helps with download and application startup times.
