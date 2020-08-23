@@ -56,150 +56,39 @@ The "Apollo" tab will appear in the Chrome console if a global `window.__APOLLO_
 Find more information about contributing and debugging on the [Apollo Client DevTools GitHub page](https://github.com/apollographql/apollo-client-devtools).
 
 
-## Apollo Codegen
+## Apollo CLI
 
-Apollo Codegen is a tool to generate API code or type annotations based on a GraphQL schema and query documents.
-
-It currently generates Swift code, TypeScript annotations, Flow annotations, and Scala code, we hope to add support for other targets in the future.
-
-See [Apollo iOS](https://github.com/apollographql/apollo-ios) for details on the mapping from GraphQL results to Swift types, as well as runtime support for executing queries and mutations. For Scala, see [React Apollo Scala.js](https://github.com/apollographql/react-apollo-scalajs) for details on how to use generated Scala code in a Scala.js app with Apollo Client.
+The [Apollo CLI](https://www.apollographql.com/docs/devtools/cli/) is a suite of tools to enable workflows for  every data graph. To improve developer velocity, the Apollo CLI supports type generation and client SDK creation. For production data graphs, the Apollo CLI provides operation and schema validation, operation safelisting, and federated service discovery.
 
 ### Usage
 
-If you want to use `apollo-codegen`, you can install it command globally:
+To use the Apollo CLI, you can install it, `apollo`, with:
 
 ```bash
-npm install -g apollo-codegen
+npm install -g apollo
 ```
 
-### `introspect-schema`
+### Code generation
 
-The purpose of this command is to create a JSON introspection dump file for a given graphql schema. The input schema can be fetched from a remote graphql server or from a local file. The resulting JSON introspection dump file is needed as input to the [generate](#generate) command.
-
-To download a GraphQL schema by sending an introspection query to a server:
-
-```bash
-apollo-codegen introspect-schema http://localhost:8080/graphql --output schema.json
-```
-
-You can use the `header` option to add additional HTTP headers to the request. For example, to include an authentication token, use `--header "Authorization: Bearer <token>"`.
-
-You can use the `insecure` option to ignore any SSL errors (for example if the server is running with self-signed certificate).
-
-To generate a GraphQL schema introspection JSON from a local GraphQL schema:
-
-```bash
-apollo-codegen introspect-schema schema.graphql --output schema.json
-```
-
-### `generate`
-
-The purpose of this command is to generate types for query and mutation operations made against the schema (it will not generate types for the schema itself).
-
-This tool will generate Swift code by default from a set of query definitions in `.graphql` files:
-
-```bash
-apollo-codegen generate **/*.graphql --schema schema.json --output API.swift
-```
-
-You can also generate type annotations for TypeScript, Flow, or Scala using the `--target` option:
+The Apollo CLI generates client SDKs for Swift and Scala and type definitions for TypeScript and Flow. For example, after [setting up an Apollo project](https://www.apollographql.com/docs/devtools/apollo-config/), `apollo` can generate typescript annotations with:
 
 ```bash
 # TypeScript
-apollo-codegen generate **/*.graphql --schema schema.json --target typescript --output operation-result-types.ts
-# Flow
-apollo-codegen generate **/*.graphql --schema schema.json --target flow --output operation-result-types.flow.js
-# Scala
-apollo-codegen generate **/*.graphql --schema schema.json --target scala --output operation-result-types.scala
+apollo client:codegen --target=typescript
 ```
 
-### `gql` template support
+For more information on Swift SDKs, see [Apollo iOS](https://www.apollographql.com/docs/ios/) for details on the mapping from GraphQL results to Swift classes, as well as runtime support for executing queries and mutations. For Scala, see [React Apollo Scala.js](https://www.apollographql.com/docs/scalajs/) for details on how to use generated Scala code in a Scala.js app with Apollo Client.
 
-If the source file for generation is a javascript or typescript file, the codegen will try to extrapolate the queries inside the [gql tag](https://github.com/apollographql/graphql-tag) templates.
+### Validation
 
-The tag name is configurable using the CLI `--tag-name` option.
+The Apollo CLI can validate operations and schemas to ensure that changes to a data graph do not break an existing client and future clients will work with a future data graph.
 
-### .graphqlconfig support
+The [schema validation documentation](https://www.apollographql.com/docs/graph-manager/schema-validation/) describes how to setup the workflow. For more information about operation validation, run `apollo help client:check`.
 
-Instead of using the `--schema` option to point out your GraphQL schema, you can specify it in a [`.graphqlconfig`](https://github.com/graphcool/graphql-config) file.
+### Operation safelisting
 
-In case you specify multiple schemas in your `.graphqlconfig` file, choose which one to pick by using the `--project-name` option.
+For servers that enforce an operation safelist, the Apollo CLI can register operations in a client bundle with a server. The [operation registry documentation](https://www.apollographql.com/docs/graph-manager/operation-registry/) describes the steps to protecting a data graph from malicious or dangerous operations.
 
-### Typescript and Flow
+### Federated service discovery
 
-When using `apollo-codegen` with Typescript or Flow, make sure to add the `__typename` introspection field to every selection set within your graphql operations.
-
-If you're using a client like `@apollo/client` that does this automatically for your GraphQL operations, pass in the `--addTypename` option to `apollo-codegen` to make sure the generated Typescript and Flow types have the `__typename` field as well. This is required to ensure proper type generation support for `GraphQLUnionType` and `GraphQLInterfaceType` fields.
-
-**Why is the __typename field required?**
-
-Using the type information from the GraphQL schema, we can infer the possible types for fields. However, in the case of a `GraphQLUnionType` or `GraphQLInterfaceType`, there are multiple types that are possible for that field. This is best modeled using a disjoint union with the `__typename`
-as the discriminant.
-
-For example, given a schema:
-
-```graphql
-interface Character {
-  name: String!
-}
-
-type Human implements Character {
-  homePlanet: String
-}
-
-type Droid implements Character {
-  primaryFunction: String
-}
-```
-
-Whenever a field of type `Character` is encountered, it could be either a Human or Droid. Human and Droid objects
-will have a different set of fields. Within your application code, when interacting with a `Character` you'll want to make sure to handle both of these cases.
-
-Given this query:
-
-```graphql
-query Characters {
-  characters(episode: NEW_HOPE) {
-    name
-
-    ... on Human {
-      homePlanet
-    }
-
-    ... on Droid {
-      primaryFunction
-    }
-  }
-}
-```
-
-Apollo Codegen will generate a union type for Character.
-
-```ts
-export type CharactersQuery = {
-  characters: Array<{
-    __typename: 'Human',
-    name: string,
-    homePlanet: ?string
-  } | {
-    __typename: 'Droid',
-    name: string,
-    primaryFunction: ?string
-  }>
-}
-```
-
-This type can then be used as follows to ensure that all possible types are handled:
-
-```tsx
-function CharacterFigures({ characters }: CharactersQuery) {
-  return characters.map(character => {
-    switch(character.__typename) {
-      case "Human":
-        return <HumanFigure homePlanet={character.homePlanet} name={character.name} />
-      case "Droid":
-        return <DroidFigure primaryFunction={character.primaryFunction} name={character.name} />
-    }
-  });
-}
-```
+A data graph can be composed of multiple backend services. With a managed deployment, the Apollo CLI can fetch and list them to support developers. The [managed federation documentation](https://www.apollographql.com/docs/graph-manager/managed-federation/overview/) describes how to setup a federated data graph and `npx apollo help service:list` contains the CLI configuration.
