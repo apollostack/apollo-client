@@ -834,4 +834,62 @@ describe('removeClientSetsFromDocument', () => {
     const doc = removeClientSetsFromDocument(query)!;
     expect(print(doc)).toBe(print(expected));
   });
+
+  it("should remove @client and __typename only fragment", () => {
+    const query = gql`
+      query {
+        author {
+          name
+          ...toBeRemoved
+        }
+      }
+
+      fragment toBeRemoved on Author {
+        __typename
+        isLoggedIn @client
+      }
+    `;
+
+    const expected = gql`
+      query {
+        author {
+          name
+        }
+      }
+    `;
+
+    const doc = removeClientSetsFromDocument(query)!;
+    expect(print(doc)).toBe(print(expected));
+  });
+
+  it("should not remove __typename only fragment without @client", () => {
+    const query = gql`
+      query {
+        author {
+          name
+          ...authorInfo
+        }
+      }
+
+      fragment authorInfo on Author {
+        __typename
+      }
+    `;
+
+    const expected = gql`
+      query {
+        author {
+          name
+          ...authorInfo
+        }
+      }
+
+      fragment authorInfo on Author {
+        __typename
+      }
+    `;
+
+    const doc = removeClientSetsFromDocument(query)!;
+    expect(print(doc)).toBe(print(expected));
+  });
 });
