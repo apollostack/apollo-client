@@ -64,18 +64,19 @@ export class MutationData<
     mutationFunctionOptions: MutationFunctionOptions<
       TData,
       TVariables
-    > = {} as MutationFunctionOptions<TData, TVariables>
+    > = {} as MutationFunctionOptions<TData, TVariables>,
+    context: TData | undefined,
   ) => {
     this.onMutationStart();
     const mutationId = this.generateNewMutationId();
 
     return this.mutate(mutationFunctionOptions)
       .then((response: FetchResult<TData>) => {
-        this.onMutationCompleted(response, mutationId);
+        this.onMutationCompleted(response, mutationId, mutationFunctionOptions, context);
         return response;
       })
       .catch((error: ApolloError) => {
-        this.onMutationError(error, mutationId);
+        this.onMutationError(error, mutationId, mutationFunctionOptions, context);
         if (!this.getOptions().onError) throw error;
       });
   };
@@ -101,7 +102,12 @@ export class MutationData<
 
   private onMutationCompleted(
     response: FetchResult<TData>,
-    mutationId: number
+    mutationId: number,
+    input: MutationFunctionOptions<
+      TData,
+      TVariables
+     > = {} as MutationFunctionOptions<TData, TVariables>,
+    context = TData | undefined,
   ) {
     const { onCompleted, ignoreResults } = this.getOptions();
 
@@ -112,7 +118,7 @@ export class MutationData<
         : undefined;
 
     const callOncomplete = () =>
-      onCompleted ? onCompleted(data as TData) : null;
+      onCompleted ? onCompleted(data as TData, input, context) : null;
 
     if (this.isMostRecentMutation(mutationId) && !ignoreResults) {
       this.updateResult({
@@ -125,7 +131,15 @@ export class MutationData<
     callOncomplete();
   }
 
-  private onMutationError(error: ApolloError, mutationId: number) {
+  private onMutationError(
+    error: ApolloError, 
+    mutationId: number,
+    input: MutationFunctionOptions<
+      TData,
+      TVariables
+     > = {} as MutationFunctionOptions<TData, TVariables>,
+    context = TData | undefined,
+  ) {
     const { onError } = this.getOptions();
 
     if (this.isMostRecentMutation(mutationId)) {
@@ -138,7 +152,7 @@ export class MutationData<
     }
 
     if (onError) {
-      onError(error);
+      onError(error, input, context);
     }
   }
 
