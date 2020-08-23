@@ -12,11 +12,12 @@ Hello! This short tutorial gets you up and running with Apollo Client.
 First, let's install the packages we need:
 
 ```bash
-npm install @apollo/client graphql
+npm install @apollo/client graphql subscriptions-transport-ws
 ```
 
 - `@apollo/client`: This single package contains virtually everything you need to set up Apollo Client. It includes the in-memory cache, local state management, error handling, and a React-based view layer.
 - `graphql`: This package provides logic for parsing GraphQL queries.
+- `subscriptions-transport-ws`: This package provides support for [GraphQL subscriptions](https://www.apollographql.com/docs/react/data/subscriptions/) over a WebSocket connection.
 
 > If you'd like to walk through this tutorial yourself, we recommend either running a new React project locally with [Create React App](https://create-react-app.dev/) or creating a new React sandbox on [CodeSandbox](https://codesandbox.io/). For reference, we will be using [this CodeSandbox](https://codesandbox.io/s/practical-snyder-48p1r2roz4) as our GraphQL server for our sample app, which pulls exchange rate data from the Coinbase API. If you'd like to skip ahead and see the app we're about to build, you can [view it on CodeSandbox](https://codesandbox.io/s/get-started-coinbase-client-73r10).
 
