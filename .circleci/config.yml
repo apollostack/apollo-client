@@ -54,6 +54,9 @@ jobs:
           path: reports/junit
       - store_artifacts:
           path: reports/junit
+      - run:
+          name: Upload coverage reports to Codecov
+          command: bash <(curl -s https://codecov.io/bash)
 
 workflows:
   version: 2

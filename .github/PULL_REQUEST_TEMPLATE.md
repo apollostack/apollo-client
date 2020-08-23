@@ -14,6 +14,9 @@
     - circleci will run tests, checking style of code, and generally make
       sure everything is working as expected
 
+    - codecov will analyze code coverage to show what code has a test written and where tests
+      could be added
+
   Please look at the following checklist to ensure that your PR
   can be accepted quickly:
 -->
