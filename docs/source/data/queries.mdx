@@ -242,6 +242,7 @@ function DelayedQuery() {
   );
 }
 ```
+A point to note here is the query will be executed again if any of the `options` passed to the `useLazyQuery` hook changes. This is the common behaviour of `useLazyQuery ` and `useQuery`.
 
 > To view a complete version of the app we just built, check out the CodeSandbox [here](https://codesandbox.io/s/queries-example-app-final-nrlnl).
 
