@@ -1492,6 +1492,8 @@ describe('QueryManager', () => {
       }).then(resolve, reject);
   });
 
+  it.todo('skip running client resolver and forward original error when the mutation has failed');
+
   itAsync(`doesn't return data while query is loading`, (resolve, reject) => {
     const query1 = gql`
       {
