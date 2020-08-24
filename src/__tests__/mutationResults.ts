@@ -395,7 +395,7 @@ describe('mutation results', () => {
       },
       error => {
         subscriptionHandle.unsubscribe();
-        expect(error.message).toMatch(/Missing field 'description' /);
+        expect(error.message).toMatch(/createTodo2 contains field 'description' /);
       },
     ).then(resolve, reject);
   });

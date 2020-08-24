@@ -2642,7 +2642,7 @@ describe('client', () => {
         fail("should have errored");
       },
       error => {
-        expect(error.message).toMatch(/Missing field 'description' /);
+        expect(error.message).toMatch(/Todo:1 contains field 'description' /);
       },
     ).then(resolve, reject);
   });

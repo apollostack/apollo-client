@@ -863,7 +863,7 @@ describe('ApolloClient', () => {
             }
           `,
         });
-      }).toThrowError(/Missing field 'description' /);
+      }).toThrowError(/Todo:1 contains field 'description' /);
     });
   });
 
@@ -1135,7 +1135,7 @@ describe('ApolloClient', () => {
             }
           `,
         });
-      }).toThrowError(/Missing field 'e' /);
+      }).toThrowError(/bar contains field 'e' /);
     });
 
     describe('change will call observable next', () => {
