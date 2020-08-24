@@ -117,7 +117,7 @@ it('renders without error', () => {
 });
 ```
 
-The `mocks` array takes objects with specific `request`s and their associated `result`s.  When the provider receives a `GET_DOG_QUERY` with matching `variables`, it returns the corresponding object from the `result` key. A `result` may alternatively be a function returning the object:
+The `mocks` array takes objects with specific `request`s and their associated `result`s.  When the provider receives a `GET_DOG_QUERY` with matching `variables`, it returns the corresponding object from the `result` key. A `result` may alternatively be a function that takes variables and returns the object:
 
 ```js
 const mocks = [
@@ -245,6 +245,43 @@ const dogMock = {
     errors: [new GraphQLError('Error!')],
   },
 };
+```
+
+## Testing with dynamic variables
+
+Sometimes, the exact value of the variables being passed are not known. The `MockedResponse` object takes a `variableMatcher` property that is a function that takes the variables and return a bool indication if this mock should match the invocation for the provided query.
+You cannot specify this parameter and `request.variables`:
+
+For example, this mock will match all dog queries:
+
+```js
+const dogMock = {
+  request: {
+    query: GET_DOG_QUERY
+  },
+  variableMatcher (variables) => true,
+  result: {
+    data: { dog: { id: 1, name: 'Buck', breed: 'poodle' } },
+  },
+};
+```
+
+This can also be useful for asserting specific variables individually:
+
+```js
+const dogMock = {
+  request: {
+    query: GET_DOG_QUERY
+  },
+  variableMatcher: jest.fn().mockReturnValue(true),
+  result: {
+    data: { dog: { id: 1, name: 'Buck', breed: 'poodle' } },
+  },
+};
+
+expect(variableMatcher).toHaveBeenCalledWith(expect.objectContaining({
+  name: 'Buck'
+}));
 ```
 
 ## Testing mutation components

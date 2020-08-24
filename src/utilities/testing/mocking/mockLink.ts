@@ -17,13 +17,16 @@ import {
   cloneDeep,
 } from '../../../utilities';
 
-export type ResultFunction<T> = () => T;
+export type ResultFunction<T, V = Record<string, any>> = (variables: V) => T;
 
-export interface MockedResponse<TData = Record<string, any>> {
+export type VariableMatcher<V> = (variables: V) => boolean;
+
+export interface MockedResponse<TData = Record<string, any>, TVariables = Record<string, any>> {
   request: GraphQLRequest;
-  result?: FetchResult<TData> | ResultFunction<FetchResult<TData>>;
+  result?: FetchResult<TData> | ResultFunction<FetchResult<TData>, TVariables>;
   error?: Error;
   delay?: number;
+  variableMatcher?: VariableMatcher<TVariables>,
   newData?: ResultFunction<FetchResult>;
 }
 
@@ -75,9 +78,7 @@ export class MockLink extends ApolloLink {
     let responseIndex: number = 0;
     const response = (this.mockedResponsesByKey[key] || []).find(
       (res, index) => {
-        const requestVariables = operation.variables || {};
-        const mockedResponseVariables = res.request.variables || {};
-        if (equal(requestVariables, mockedResponseVariables)) {
+        if (res.variableMatcher && res.variableMatcher(operation.variables)) {
           responseIndex = index;
           return true;
         }
@@ -99,7 +100,7 @@ export class MockLink extends ApolloLink {
     const { newData } = response!;
 
     if (newData) {
-      response!.result = newData();
+      response!.result = newData(operation.variables);
       this.mockedResponsesByKey[key].push(response!);
     }
 
@@ -120,7 +121,7 @@ export class MockLink extends ApolloLink {
             if (result) {
               observer.next(
                 typeof result === 'function'
-                  ? (result as ResultFunction<FetchResult>)()
+                  ? (result as ResultFunction<FetchResult>)(operation.variables)
                   : result
               );
             }
@@ -149,7 +150,23 @@ export class MockLink extends ApolloLink {
     if (query) {
       newMockedResponse.request.query = query;
     }
+    this.normalizeVariableMatching(newMockedResponse);
     return newMockedResponse;
+  }
+
+  private normalizeVariableMatching(mockedResponse: MockedResponse) {
+    const variables = mockedResponse.request.variables;
+    if (mockedResponse.variableMatcher && variables) {
+      throw new Error('Mocked response should contain either variableMatcher or request.variables');
+    }
+
+    if (!mockedResponse.variableMatcher) {
+      mockedResponse.variableMatcher = (vars) => {
+        const requestVariables = vars || {};
+        const mockedResponseVariables = variables || {};
+        return equal(requestVariables, mockedResponseVariables);
+      };
+    }
   }
 }
 

@@ -22,3 +22,10 @@ Object {
   },
 }
 `;
+
+exports[`General use should use a mock if the variableMatcher returns true 1`] = `
+Object {
+  "__typename": "User",
+  "id": "user_id",
+}
+`;
