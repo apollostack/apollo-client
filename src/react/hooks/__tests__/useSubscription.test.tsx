@@ -2,7 +2,7 @@ import React from 'react';
 import { render, cleanup, wait } from '@testing-library/react';
 import gql from 'graphql-tag';
 
-import { ApolloClient } from '../../../core';
+import { ApolloClient, ApolloError } from '../../../core';
 import { InMemoryCache as Cache } from '../../../cache';
 import { ApolloProvider } from '../../context';
 import { MockSubscriptionLink } from '../../../testing';
@@ -291,6 +291,46 @@ describe('useSubscription Hook', () => {
 
     return wait(() => {
       expect(renderCount).toEqual(7);
+    });
+  });
+
+  it("should handle subscription errors properly", async () => {
+    const subscription = gql`
+      subscription {
+        car {
+          make
+        }
+      }
+    `;
+
+    const link = new MockSubscriptionLink();
+    const client = new ApolloClient({
+      link,
+      cache: new Cache({ addTypename: false }),
+    });
+
+    let expectedError: ApolloError | undefined;
+
+    link.simulateResult({
+      error: new Error(
+        "This should be converted to graphQLErrors on ApolloError"
+      ),
+    });
+
+    const Component = () => {
+      const { error } = useSubscription(subscription);
+      expectedError = error;
+      return null;
+    };
+
+    render(
+      <ApolloProvider client={client}>
+        <Component />
+      </ApolloProvider>
+    );
+
+    return wait(() => {
+      expect(expectedError?.graphQLErrors?.length).toBe(1);
     });
   });
 });

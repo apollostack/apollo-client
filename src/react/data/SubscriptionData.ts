@@ -6,6 +6,7 @@ import {
   SubscriptionDataOptions,
   SubscriptionResult
 } from '../types/types';
+import { ApolloError, isApolloError } from '../../core';
 
 export class SubscriptionData<
   TData = any,
@@ -128,10 +129,14 @@ export class SubscriptionData<
     }
   }
 
-  private updateError(error: any) {
+  private updateError(graphQLError: any) {
+    const apolloError = isApolloError(graphQLError)
+      ? graphQLError
+      : new ApolloError({ graphQLErrors: [graphQLError] });
+
     this.updateResult({
-      error,
-      loading: false
+      error: apolloError,
+      loading: false,
     });
   }
 
