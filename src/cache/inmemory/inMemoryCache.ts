@@ -26,12 +26,14 @@ import {
   Policies,
   TypePolicies,
 } from './policies';
+import { ObjectCache } from "./objectCache";
 import { hasOwn } from './helpers';
 
 export interface InMemoryCacheConfig extends ApolloReducerConfig {
   resultCaching?: boolean;
   possibleTypes?: PossibleTypesMap;
   typePolicies?: TypePolicies;
+  objectCache?: ObjectCache;
 }
 
 const defaultConfig: InMemoryCacheConfig = {
@@ -78,6 +80,7 @@ export class InMemoryCache extends ApolloCache<NormalizedCacheObject> {
     this.data = new EntityStore.Root({
       policies: this.policies,
       resultCaching: this.config.resultCaching,
+      objectCache: this.config.objectCache
     });
 
     // When no optimistic writes are currently active, cache.optimisticData ===

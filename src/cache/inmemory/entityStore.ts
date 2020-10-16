@@ -14,6 +14,7 @@ import {
 import { NormalizedCache, NormalizedCacheObject } from './types';
 import { hasOwn, fieldNameFromStoreName } from './helpers';
 import { Policies } from './policies';
+import { ObjectCache } from './objectCache';
 import { Cache } from '../core/types/Cache';
 import {
   SafeReadonly,
@@ -29,11 +30,11 @@ const DELETE: any = Object.create(null);
 const delModifier: Modifier<any> = () => DELETE;
 
 export abstract class EntityStore implements NormalizedCache {
-  protected data: NormalizedCacheObject = Object.create(null);
 
   constructor(
     public readonly policies: Policies,
     public readonly group: CacheGroup,
+    protected cache: ObjectCache = new ObjectCache()
   ) {}
 
   public abstract addLayer(
@@ -48,7 +49,7 @@ export abstract class EntityStore implements NormalizedCache {
   // are inherited by the Root and Layer subclasses.
 
   public toObject(): NormalizedCacheObject {
-    return { ...this.data };
+    return { ...this.cache.toObject() };
   }
 
   public has(dataId: string): boolean {
@@ -57,8 +58,8 @@ export abstract class EntityStore implements NormalizedCache {
 
   public get(dataId: string, fieldName: string): StoreValue {
     this.group.depend(dataId, fieldName);
-    if (hasOwn.call(this.data, dataId)) {
-      const storeObject = this.data[dataId];
+    if (this.cache.has(dataId)) {
+      const storeObject = this.cache.get(dataId);
       if (storeObject && hasOwn.call(storeObject, fieldName)) {
         return storeObject[fieldName];
       }
@@ -79,7 +80,7 @@ export abstract class EntityStore implements NormalizedCache {
     // should not rely on this dependency, since the contents could change
     // without the object being added or removed.
     if (dependOnExistence) this.group.depend(dataId, "__exists");
-    return hasOwn.call(this.data, dataId) ? this.data[dataId] :
+    return this.cache.has(dataId) ? this.cache.get(dataId) :
       this instanceof Layer ? this.parent.lookup(dataId, dependOnExistence) : void 0;
   }
 
@@ -88,7 +89,7 @@ export abstract class EntityStore implements NormalizedCache {
     const merged = new DeepMerger(storeObjectReconciler).merge(existing, incoming);
     // Even if merged === existing, existing may have come from a lower
     // layer, so we always need to set this.data[dataId] on this level.
-    this.data[dataId] = merged;
+    this.cache.set(dataId, merged)
     if (merged !== existing) {
       delete this.refs[dataId];
       if (this.group.caching) {
@@ -173,9 +174,9 @@ export abstract class EntityStore implements NormalizedCache {
 
         if (allDeleted) {
           if (this instanceof Layer) {
-            this.data[dataId] = void 0;
+            this.cache.set(dataId, void 0);
           } else {
-            delete this.data[dataId];
+            this.cache.delete(dataId);
           }
           this.group.dirty(dataId, "__exists");
         }
@@ -214,7 +215,7 @@ export abstract class EntityStore implements NormalizedCache {
   public evict(options: Cache.EvictOptions): boolean {
     let evicted = false;
     if (options.id) {
-      if (hasOwn.call(this.data, options.id)) {
+      if (this.cache.has(options.id)) {
         evicted = this.delete(options.id, options.fieldName, options.args);
       }
       if (this instanceof Layer) {
@@ -236,7 +237,7 @@ export abstract class EntityStore implements NormalizedCache {
   }
 
   public replace(newData: NormalizedCacheObject | null): void {
-    Object.keys(this.data).forEach(dataId => {
+    this.cache.getAllKeys().forEach(dataId => {
       if (!(newData && hasOwn.call(newData, dataId))) {
         this.delete(dataId);
       }
@@ -313,7 +314,7 @@ export abstract class EntityStore implements NormalizedCache {
   public findChildRefIds(dataId: string): Record<string, true> {
     if (!hasOwn.call(this.refs, dataId)) {
       const found = this.refs[dataId] = Object.create(null);
-      const workSet = new Set([this.data[dataId]]);
+      const workSet = new Set([this.cache.get(dataId)]);
       // Within the store, only arrays and objects can contain child entity
       // references, so we can prune the traversal using this predicate:
       const canTraverse = (obj: any) => obj !== null && typeof obj === 'object';
@@ -445,12 +446,14 @@ export namespace EntityStore {
       policies,
       resultCaching = true,
       seed,
+      objectCache
     }: {
       policies: Policies;
       resultCaching?: boolean;
       seed?: NormalizedCacheObject;
+      objectCache?: ObjectCache;
     }) {
-      super(policies, new CacheGroup(resultCaching));
+      super(policies, new CacheGroup(resultCaching), objectCache);
       this.sharedLayerGroup = new CacheGroup(resultCaching);
       if (seed) this.replace(seed);
     }
@@ -497,12 +500,12 @@ class Layer extends EntityStore {
     if (layerId === this.id) {
       // Dirty every ID we're removing.
       if (this.group.caching) {
-        Object.keys(this.data).forEach(dataId => {
+        this.cache.getAllKeys().forEach(dataId => {
           // If this.data[dataId] contains nothing different from what
           // lies beneath, we can avoid dirtying this dataId and all of
           // its fields, and simply discard this Layer. The only reason we
           // call this.delete here is to dirty the removed fields.
-          if (this.data[dataId] !== (parent as Layer).lookup(dataId)) {
+          if (this.cache.get(dataId) !== (parent as Layer).lookup(dataId)) {
             this.delete(dataId);
           }
         });
@@ -520,13 +523,13 @@ class Layer extends EntityStore {
   public toObject(): NormalizedCacheObject {
     return {
       ...this.parent.toObject(),
-      ...this.data,
+      ...this.cache.toObject()
     };
   }
 
   public findChildRefIds(dataId: string): Record<string, true> {
     const fromParent = this.parent.findChildRefIds(dataId);
-    return hasOwn.call(this.data, dataId) ? {
+    return this.cache.has(dataId) ? {
       ...fromParent,
       ...super.findChildRefIds(dataId),
     } : fromParent;
