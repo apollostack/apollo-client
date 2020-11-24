@@ -94,6 +94,35 @@ describe('General use', () => {
     return wait().then(resolve, reject);
   });
 
+  itAsync('should mock the data if interfaces are used', async (resolve, reject) => {
+    const interfaceQuery = gql`
+      { transportations { name ... on Car { numWheels } } }
+    `
+    const interfaceMocks = [
+      { request: { query: interfaceQuery, variables: {} }, result: { data: { transportations: [
+        {
+          name: 'Car',
+          numWheels: 4,
+        }
+        ] } }}
+    ]
+    function Component() {
+      const { loading, data } = useQuery<Data, Variables>(interfaceQuery);
+      if (!loading) {
+        expect(data).toMatchSnapshot()
+      }
+      return null;
+    }
+
+    render(
+      <MockedProvider mocks={interfaceMocks} >
+        <Component />
+      </MockedProvider>
+    );
+
+    return wait().then(resolve, reject);
+  });
+
   itAsync('should allow querying with the typename', async (resolve, reject) => {
     function Component({ username }: Variables) {
       const { loading, data } = useQuery<Data, Variables>(query, { variables });

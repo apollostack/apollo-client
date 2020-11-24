@@ -14,6 +14,17 @@ Object {
 }
 `;
 
+exports[`General use should mock the data if interfaces are used 1`] = `
+Object {
+  "transportations": Array [
+    Object {
+      "name": "Car",
+      "numWheels": 4,
+    },
+  ],
+}
+`;
+
 exports[`General use should not error if the variables match but have different order 1`] = `
 Object {
   "user": Object {

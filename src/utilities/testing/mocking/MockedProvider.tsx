@@ -44,7 +44,10 @@ export class MockedProvider extends React.Component<
     } = this.props;
     const client = new ApolloClient({
       cache: cache || new Cache({ addTypename }),
-      defaultOptions,
+      defaultOptions: defaultOptions || {
+        query: { fetchPolicy: "no-cache" },
+        watchQuery: { fetchPolicy: "no-cache" },
+      },
       link: link || new MockLink(
         mocks || [],
         addTypename,
