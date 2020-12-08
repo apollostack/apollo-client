@@ -82,6 +82,9 @@ The `@apollo/client` package exports a `MockedProvider` component which simplifi
 
 By using this `MockedProvider` component, it's possible to specify the exact results that should be returned for a certain query using the `mocks` prop.
 
+> **Note:** You need to match exact schema of the query in mocked data; otherwise data will be `undefined`
+
+
 Here's an example of a test for the above `Dog` component using `MockedProvider`, which shows how to define the mocked response for `GET_DOG_QUERY`:
 
 ```jsx
