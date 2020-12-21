@@ -63,7 +63,7 @@ export function withSubscription<
         this.state = { resubscribe: false };
       }
 
-      componentDidUpate(prevProps: TProps) {
+      componentDidUpdate(prevProps: TProps) {
         if (shouldResubscribe) {
           this.setState({
             resubscribe: shouldResubscribe(prevProps, this.props)
