@@ -63,11 +63,16 @@ export function withSubscription<
         this.state = { resubscribe: false };
       }
 
+      updateResubscribe(value: boolean) {
+        this.setState({
+          resubscribe: value
+        });
+      }
+
       componentDidUpdate(prevProps: TProps) {
-        if (shouldResubscribe) {
-          this.setState({
-            resubscribe: shouldResubscribe(prevProps, this.props)
-          });
+        const resubscribe = !!shouldResubscribe && shouldResubscribe(prevProps, this.props);
+        if (this.state.resubscribe !== resubscribe) {
+          this.updateResubscribe(resubscribe);
         }
       }
 
