@@ -7,7 +7,7 @@
     "types": "cd .. && typedoc --json ./docs/src/gatsby-theme-apollo-docs/docs.json --ignoreCompilerErrors ./src/index.ts"
   },
   "dependencies": {
-    "gatsby": "2.29.1",
+    "gatsby": "2.29.2",
     "gatsby-theme-apollo-docs": "4.5.12",
     "ink": "^2.7.1",
     "react": "17.0.1",
