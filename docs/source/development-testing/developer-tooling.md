@@ -1,6 +1,6 @@
 ---
 title: Developer tools
-description: Improve your developer experience with these these services and extensions
+description: Improve your developer experience with these services and extensions
 ---
 
 ## Apollo Studio

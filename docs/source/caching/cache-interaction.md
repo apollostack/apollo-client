@@ -280,6 +280,7 @@ For example:
 const [addComment] = useMutation(ADD_COMMENT, {
   update(cache, { data: { addComment } }) {
     cache.modify({
+      id: cache.identify(myPost),
       fields: {
         comments(existingCommentRefs = [], { readField }) {
           const newCommentRef = cache.writeFragment({

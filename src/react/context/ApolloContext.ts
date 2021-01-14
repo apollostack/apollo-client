@@ -23,6 +23,7 @@ export function getApolloContext() {
   let context = cache.get(React.createContext)!;
   if (!context) {
     context = React.createContext<ApolloContextValue>({});
+    context.displayName = 'ApolloContext';
     cache.set(React.createContext, context);
   }
   return context;
