@@ -1,6 +1,6 @@
 {
   "name": "@apollo/client",
-  "version": "3.3.6",
+  "version": "3.3.7",
   "description": "A fully-featured caching GraphQL client.",
   "private": true,
   "keywords": [
@@ -89,7 +89,7 @@
   },
   "devDependencies": {
     "@babel/parser": "7.12.11",
-    "@rollup/plugin-node-resolve": "11.0.1",
+    "@rollup/plugin-node-resolve": "11.1.0",
     "@testing-library/react": "9.4.1",
     "@types/fast-json-stable-stringify": "2.0.0",
     "@types/fetch-mock": "^7.3.2",
@@ -97,7 +97,7 @@
     "@types/hoist-non-react-statics": "^3.3.1",
     "@types/jest": "26.0.20",
     "@types/lodash": "4.14.167",
-    "@types/node": "14.14.20",
+    "@types/node": "14.14.21",
     "@types/react": "17.0.0",
     "@types/react-dom": "17.0.0",
     "@types/recompose": "^0.30.7",

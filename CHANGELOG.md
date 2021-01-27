@@ -1,3 +1,18 @@
+## Apollo Client 3.3.7
+
+### Bug Fixes
+
+- Fix a regression due to [#7310](https://github.com/apollographql/apollo-client/pull/7310) that caused `loading` always to be `true` for `skip: true` results during server-side rendering. <br/>
+  [@rgrove](https://github.com/rgrove) in [#7567](https://github.com/apollographql/apollo-client/pull/7567)
+
+- Avoid duplicate `useReactiveVar` listeners when rendering in `React.StrictMode`. <br/>
+  [@jcreighton](https://github.com/jcreighton) in [#7581](https://github.com/apollographql/apollo-client/pull/7581)
+
+### Improvements
+
+- Set `displayName` on `ApolloContext` objects for easier debugging. <br/>
+  [@dulmandakh](https://github.com/dulmandakh) in [#7550](https://github.com/apollographql/apollo-client/pull/7550)
+
 ## Apollo Client 3.3.6
 
 ### Bug Fixes

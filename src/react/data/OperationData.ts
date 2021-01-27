@@ -12,7 +12,7 @@ export abstract class OperationData<TOptions = any> {
     TOptions
   >;
   public context: any = {};
-  public client: ApolloClient<object> | undefined;
+  public client: ApolloClient<object>;
 
   private options: CommonOptions<TOptions> = {} as CommonOptions<TOptions>;
 

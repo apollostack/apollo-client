@@ -198,6 +198,8 @@ function DogPhoto({ breed }) {
 }
 ```
 
+Enabling this option will also ensure that the value of `loading` updates accordingly, even if you don't want to leverage the more fine-grained information provided by the `networkStatus` property.
+
 The `networkStatus` property is a `NetworkStatus` enum that represents different loading states. Refetch is represented by `NetworkStatus.refetch`, and there are also values for polling and pagination. For a full list of all the possible loading states, check out the [source](https://github.com/apollographql/apollo-client/blob/main/src/core/networkStatus.ts).
 
 > To view a complete version of the app we just built, check out the CodeSandbox [here](https://codesandbox.io/s/queries-example-app-final-nrlnl).
