@@ -106,19 +106,25 @@ Apollo Client should use your `WebSocketLink` for subscriptions, but it _shouldn
 The following example expands on the previous one by initializing both a `WebSocketLink` _and_ an `HttpLink`. It then uses the `split` function to combine those two `Link`s into a _single_ `Link` that uses one or the other according to the type of operation being executed.
 
 ```js
-import { split, HttpLink } from '@apollo/client';
-import { getMainDefinition } from '@apollo/client/utilities';
-import { WebSocketLink } from '@apollo/client/link/ws';
+import {
+  ApolloClient,
+  ApolloProvider,
+  split,
+  HttpLink,
+  InMemoryCache,
+} from "@apollo/client";
+import { getMainDefinition } from "@apollo/client/utilities";
+import { WebSocketLink } from "@apollo/client/link/ws";
 
 const httpLink = new HttpLink({
-  uri: 'http://localhost:3000/'
+  uri: "http://localhost:3000/",
 });
 
 const wsLink = new WebSocketLink({
-  uri: `ws://localhost:5000/`,
+  uri: `ws://localhost:3000/`, // websocket port can be different from httpLink
   options: {
-    reconnect: true
-  }
+    reconnect: true,
+  },
 });
 
 // The split function takes three parameters:
@@ -130,13 +136,25 @@ const splitLink = split(
   ({ query }) => {
     const definition = getMainDefinition(query);
     return (
-      definition.kind === 'OperationDefinition' &&
-      definition.operation === 'subscription'
+      definition.kind === "OperationDefinition" &&
+      definition.operation === "subscription"
     );
   },
   wsLink,
-  httpLink,
+  httpLink
 );
+
+// Now we can create a new client that will support subscriptions.
+const client = new ApolloClient({
+  splitLink,
+  cache: new InMemoryCache(),
+});
+
+
+// Implementing the provider is the same, passing your client with the split link
+function AppWithApolloProvider() {
+  return <ApolloProvider client={client}>...children</ApolloProvider>;
+}
 ```
 
 Using this logic, queries and mutations will use HTTP as normal, and subscriptions will use WebSocket.
