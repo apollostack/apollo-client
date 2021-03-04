@@ -71,15 +71,16 @@ To embed a fragment inside a GraphQL operation, prefix its name with three perio
 
 ```js
 const SUBMIT_COMMENT_MUTATION = gql`
+  ${CommentsPage.fragments.comment}
   mutation SubmitComment($postFullName: String!, $commentContent: String!) {
     submitComment(postFullName: $postFullName, commentContent: $commentContent) {
       ...CommentsPageComment // highlight-line
     }
-  }
-  ${CommentsPage.fragments.comment}
+  } 
 `;
 
 export const COMMENT_QUERY = gql`
+  ${CommentsPage.fragments.comment}
   query Comment($postName: String!) {
     entry(postFullName: $postName) {
       comments {
@@ -87,7 +88,6 @@ export const COMMENT_QUERY = gql`
       }
     }
   }
-  ${CommentsPage.fragments.comment}
 `;
 ```
 
@@ -129,6 +129,8 @@ After you define a fragment in a child component, the parent component can refer
 ```js
 FeedEntry.fragments = {
   entry: gql`
+    ${VoteButtons.fragments.entry}
+    ${RepoInfo.fragments.entry}
     fragment FeedEntryFragment on FeedEntry {
       commentCount
       repository {
@@ -140,9 +142,7 @@ FeedEntry.fragments = {
       }
       ...VoteButtonsFragment
       ...RepoInfoFragment
-    }
-    ${VoteButtons.fragments.entry}
-    ${RepoInfo.fragments.entry}
+    } 
   `,
 };
 ```
