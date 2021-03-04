@@ -50,6 +50,8 @@ To specify this baseline set of fields, we define a fragment that lists the `Com
 ```js
 import { gql } from '@apollo/client';
 
+let CommentsPage = {};
+
 CommentsPage.fragments = {
   comment: gql`
     fragment CommentsPageComment on Comment {
@@ -63,6 +65,8 @@ CommentsPage.fragments = {
     }
   `,
 };
+
+export CommentsPage;
 ```
 
 We assign the fragment to `CommentsPage.fragments.comment` as a convention.
