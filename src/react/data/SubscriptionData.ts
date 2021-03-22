@@ -53,8 +53,8 @@ export class SubscriptionData<
       shouldResubscribe !== false &&
       this.previousOptions &&
       Object.keys(this.previousOptions).length > 0 &&
-      (this.previousOptions.subscription !== this.getOptions().subscription ||
-        !equal(this.previousOptions.variables, this.getOptions().variables) ||
+	  (this.previousOptions.subscription !== this.getOptions().subscription ||
+	  	!equal(this.previousOptions.variables, this.getOptions().variables) ||
         this.previousOptions.skip !== this.getOptions().skip)
     ) {
       this.cleanup();
@@ -78,12 +78,26 @@ export class SubscriptionData<
   }
 
   private initialize(options: SubscriptionDataOptions<TData, TVariables>) {
-    if (this.currentObservable.query || this.getOptions().skip === true) return;
-    this.currentObservable.query = this.refreshClient().client.subscribe({
-      query: options.subscription,
-      variables: options.variables,
-      fetchPolicy: options.fetchPolicy
-    });
+    if ((this.currentObservable.query && equal(this.previousOptions.variables, options.variables)) || this.getOptions().skip === true)
+        return;
+
+    if (this.currentObservable.query && !equal(this.previousOptions.variables, options.variables)) {
+        delete this.currentObservable.query;
+
+        if (this.client) {
+            this.currentObservable.query = this.client.subscribe({
+            query: options.subscription,
+            variables: options.variables,
+            fetchPolicy: options.fetchPolicy,
+            });
+        }
+    } else {
+        this.currentObservable.query = this.refreshClient().client.subscribe({
+        query: options.subscription,
+        variables: options.variables,
+        fetchPolicy: options.fetchPolicy,
+        });
+    }
   }
 
   private startSubscription() {
