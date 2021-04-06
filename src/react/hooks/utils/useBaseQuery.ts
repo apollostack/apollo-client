@@ -70,8 +70,39 @@ export function useBaseQuery<TData = any, TVariables = OperationVariables>(
     ? (result as QueryTuple<TData, TVariables>)[1]
     : (result as QueryResult<TData, TVariables>);
 
+  let _maybeFastRefresh: React.MutableRefObject<boolean>;
+
+  // @ts-expect-error: __DEV__ is a global exposed by react
+  if (__DEV__) {
+    /* eslint-disable react-hooks/rules-of-hooks */
+    _maybeFastRefresh = useRef(false);
+    useEffect(() => {
+      return () => {
+        // Detect fast refresh, only runs multiple times in fast refresh
+        _maybeFastRefresh.current = true;
+      };
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    /* eslint-enable react-hooks/rules-of-hooks */
+  }
+
   useEffect(() => {
-    return () => queryData.cleanup();
+    if (_maybeFastRefresh && _maybeFastRefresh.current) {
+      /**
+       * This block only runs during fast refresh, the current resource and
+       * it's cache is disposed in the previous cleanup. Stop retaining and
+       * force a re-render to restart the hook.
+       */
+      _maybeFastRefresh.current = false;
+      forceUpdate();
+      return;
+    }
+
+    return () => {
+      queryData.cleanup();
+      // this effect can run multiple times during a fast-refresh
+      // so make sure we clean up the ref
+      queryDataRef.current = undefined;
+    }
   }, []);
 
   useEffect(() => queryData.afterExecute({ lazy }), [
