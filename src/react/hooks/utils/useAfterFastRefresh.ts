@@ -1,11 +1,11 @@
 import { useEffect, useRef } from "react";
 
 /**
- * This hook allow running a function only immediatelly after a react
+ * This hook allows running a function only immediately after a react
  * fast refresh or live reload.
  *
  * Useful in order to ensure that we can reinitialize things that have been
- * disposed otherwise.
+ * disposed by cleanup functions in `useEffect`.
  * @param effectFn a function to run immediately after a fast refresh
  */
 export function useAfterFastRefresh(effectFn: () => unknown) {
