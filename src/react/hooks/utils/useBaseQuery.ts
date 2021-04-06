@@ -86,11 +86,11 @@ export function useBaseQuery<TData = any, TVariables = OperationVariables>(
   }
 
   useEffect(() => {
-    if (_maybeFastRefresh && _maybeFastRefresh.current) {
+    if (_maybeFastRefresh?.current) {
       /**
        * This block only runs during fast refresh, the current resource and
-       * it's cache is disposed in the previous cleanup. Stop retaining and
-       * force a re-render to restart the hook.
+       * its cache is disposed in the previous cleanup.
+       * Force a re-render to restart the hook.
        */
       _maybeFastRefresh.current = false;
       forceUpdate();
