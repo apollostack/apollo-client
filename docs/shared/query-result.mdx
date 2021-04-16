@@ -7,10 +7,10 @@
 | `variables` | { [key: string]: any } | An object containing the variables the query was called with |
 | `networkStatus` | NetworkStatus | A number from 1-8 (1 = `loading`, 2 = `setVariables`, 3 = `fetchMore`, 4 = `refetch`, 6 = `poll`, 7 = `ready`, 8 = `error`) corresponding to the detailed state of your network request. Includes information about refetching and polling status. Used in conjunction with the `notifyOnNetworkStatusChange` prop. |
 | `refetch` | (variables?: Partial&lt;TVariables&gt;) => Promise&lt;ApolloQueryResult&gt; | A function that allows you to refetch the query and optionally pass in new variables |
-| `fetchMore` | ({ query?: DocumentNode, variables?: TVariables, updateQuery: Function}) => Promise&lt;ApolloQueryResult&gt; | A function that enables [pagination](../../../pagination/overview) for your query |
+| `fetchMore` | ({ query?: DocumentNode, variables?: TVariables, updateQuery: Function}) => Promise&lt;ApolloQueryResult&gt; | A function that enables [pagination](/docs/react/pagination/overview/) for your query |
 | `startPolling` | (interval: number) => void | This function sets up an interval in ms and fetches the query each time the specified interval passes. |
 | `stopPolling` | () => void | This function stops the query from polling. |
-| `subscribeToMore` | (options: { document: DocumentNode, variables?: TVariables, updateQuery?: Function, onError?: Function}) => () => void | A function that sets up a [subscription](../../../data/subscriptions/). `subscribeToMore` returns a function that you can use to unsubscribe. |
+| `subscribeToMore` | (options: { document: DocumentNode, variables?: TVariables, updateQuery?: Function, onError?: Function}) => () => void | A function that sets up a [subscription](/docs/react/data/subscriptions/). `subscribeToMore` returns a function that you can use to unsubscribe. |
 | `updateQuery` | (previousResult: TData, options: { variables: TVariables }) => TData | A function that allows you to update the query's result in the cache outside the context of a fetch, mutation, or subscription |
 | `client` | ApolloClient | Your `ApolloClient` instance. Useful for manually firing queries or writing data to the cache. |
 | `called` | boolean | A boolean indicating if the query function has been called, used by `useLazyQuery` (not set for `useQuery` / `Query`). |
