@@ -13,9 +13,10 @@ import {
   createOperation,
   transformOperation,
 } from '../utils';
+import { of } from 'rxjs';
 
-function passthrough(op: Operation, forward: NextLink) {
-  return (forward ? forward(op) : Observable.of()) as Observable<FetchResult>;
+function passthrough(op: Operation, forward: NextLink): Observable<FetchResult> {
+  return forward ? forward(op) : of();
 }
 
 function toLink(handler: RequestHandler | ApolloLink) {
@@ -36,7 +37,7 @@ class LinkError extends Error {
 
 export class ApolloLink {
   public static empty(): ApolloLink {
-    return new ApolloLink(() => Observable.of());
+    return new ApolloLink(() => of());
   }
 
   public static from(links: (ApolloLink | RequestHandler)[]): ApolloLink {
@@ -55,14 +56,14 @@ export class ApolloLink {
     if (isTerminating(leftLink) && isTerminating(rightLink)) {
       return new ApolloLink(operation => {
         return test(operation)
-          ? leftLink.request(operation) || Observable.of()
-          : rightLink.request(operation) || Observable.of();
+          ? leftLink.request(operation) || of()
+          : rightLink.request(operation) || of();
       });
     } else {
       return new ApolloLink((operation, forward) => {
         return test(operation)
-          ? leftLink.request(operation, forward) || Observable.of()
-          : rightLink.request(operation, forward) || Observable.of();
+          ? leftLink.request(operation, forward) || of()
+          : rightLink.request(operation, forward) || of();
       });
     }
   }
@@ -77,7 +78,7 @@ export class ApolloLink {
           operation.context,
           transformOperation(validateOperation(operation)),
         ),
-      ) || Observable.of()
+      ) || of()
     );
   }
 
@@ -102,15 +103,15 @@ export class ApolloLink {
         operation =>
           firstLink.request(
             operation,
-            op => nextLink.request(op) || Observable.of(),
-          ) || Observable.of(),
+            op => nextLink.request(op) || of(),
+          ) || of(),
       );
     } else {
       return new ApolloLink((operation, forward) => {
         return (
           firstLink.request(operation, op => {
-            return nextLink.request(op, forward) || Observable.of();
-          }) || Observable.of()
+            return nextLink.request(op, forward) || of();
+          }) || of()
         );
       });
     }

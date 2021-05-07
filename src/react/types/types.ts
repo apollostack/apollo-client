@@ -2,7 +2,7 @@ import { ReactNode } from 'react';
 import { DocumentNode } from 'graphql';
 import { TypedDocumentNode } from '@graphql-typed-document-node/core';
 
-import { Observable } from '../../utilities';
+import { Observable, ObservableSubscription } from '../../utilities';
 import { FetchResult } from '../../link/core';
 import { ApolloClient } from '../../core';
 import { ApolloError } from '../../errors';
@@ -258,5 +258,5 @@ export interface SubscriptionDataOptions<
 
 export interface SubscriptionCurrentObservable {
   query?: Observable<any>;
-  subscription?: ZenObservable.Subscription;
+  subscription?: ObservableSubscription;
 }

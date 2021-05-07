@@ -1,5 +1,6 @@
 import { Operation, FetchResult, NextLink } from '../core';
 import { Observable } from '../../utilities';
+import { of } from 'rxjs';
 
 export type BatchHandler = (
   operations: Operation[],
@@ -140,7 +141,7 @@ export class OperationBatcher {
     });
 
     const batchedObservable =
-      this.batchHandler(requests, forwards) || Observable.of();
+      this.batchHandler(requests, forwards) || of();
 
     const onError = (error: any) => {
       //each callback list in batch

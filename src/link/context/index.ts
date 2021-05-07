@@ -1,5 +1,5 @@
 import { ApolloLink, Operation, GraphQLRequest, NextLink } from '../core';
-import { Observable } from '../../utilities';
+import { Observable, ObservableSubscription } from '../../utilities';
 
 export type ContextSetter = (
   operation: GraphQLRequest,
@@ -11,7 +11,7 @@ export function setContext(setter: ContextSetter): ApolloLink {
     const { ...request } = operation;
 
     return new Observable(observer => {
-      let handle: ZenObservable.Subscription;
+      let handle: ObservableSubscription;
       Promise.resolve(request)
         .then(req => setter(req, operation.getContext()))
         .then(operation.setContext)

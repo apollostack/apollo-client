@@ -1,4 +1,4 @@
-import { Observable, Observer, ObservableSubscription, Subscriber } from "./Observable";
+import { Observable, Observer, ObservableSubscription } from "./Observable";
 import { iterateObserversSafely } from "./iteration";
 import { fixObservableSubclass } from "./subclassing";
 
@@ -56,7 +56,7 @@ export class Concast<T> extends Observable<T> {
 
   // Not only can the individual elements of the iterable be promises, but
   // also the iterable itself can be wrapped in a promise.
-  constructor(sources: MaybeAsync<ConcastSourcesIterable<T>> | Subscriber<T>) {
+  constructor(sources: MaybeAsync<ConcastSourcesIterable<T>>) {
     super(observer => {
       this.addObserver(observer);
       return () => this.removeObserver(observer);
@@ -71,7 +71,7 @@ export class Concast<T> extends Observable<T> {
     // function, recover by creating an Observable from that subscriber and
     // using it as the source.
     if (typeof sources === "function") {
-      sources = [new Observable(sources)];
+      sources = [new Observable<T>(sources)];
     }
 
     if (isPromiseLike(sources)) {

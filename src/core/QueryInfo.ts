@@ -236,8 +236,8 @@ export class QueryInfo {
 
       // Cancel the pending notify timeout
       this.reset();
-      
-      this.cancel();
+
+      this.cancel!();
       // Revert back to the no-op version of cancel inherited from
       // QueryInfo.prototype.
       delete this.cancel;
@@ -251,7 +251,7 @@ export class QueryInfo {
 
   // This method is a no-op by default, until/unless overridden by the
   // updateWatch method.
-  private cancel() {}
+  private cancel?() {}
 
   private lastWatch?: Cache.WatchOptions;
 
@@ -263,7 +263,7 @@ export class QueryInfo {
     if (!this.lastWatch ||
         this.lastWatch.query !== this.document ||
         !equal(variables, this.lastWatch.variables)) {
-      this.cancel();
+      this.cancel!();
       this.cancel = this.cache.watch(this.lastWatch = {
         query: this.document!,
         variables,

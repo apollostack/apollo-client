@@ -95,7 +95,7 @@ export type OptimisticStoreItem = {
 export type ReadQueryOptions = {
   store: NormalizedCache;
   query: DocumentNode;
-  variables?: Object;
+  variables?: object;
   previousResult?: any;
   rootId?: string;
   config?: ApolloReducerConfig;

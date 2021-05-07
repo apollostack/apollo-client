@@ -1,5 +1,5 @@
 import { ApolloLink, Operation, FetchResult, NextLink } from '../core';
-import { Observable } from '../../utilities';
+import { Observable, Observer, ObservableSubscription } from '../../utilities';
 import {
   DelayFunction,
   DelayFunctionOptions,
@@ -34,8 +34,8 @@ class RetryableOperation<TValue = any> {
   private error: any;
   private complete = false;
   private canceled = false;
-  private observers: (ZenObservable.Observer<TValue> | null)[] = [];
-  private currentSubscription: ZenObservable.Subscription | null = null;
+  private observers: (Observer<TValue> | null)[] = [];
+  private currentSubscription: ObservableSubscription | null = null;
   private timerId: number | undefined;
 
   constructor(
@@ -51,7 +51,7 @@ class RetryableOperation<TValue = any> {
    * If the operation has previously emitted other events, they will be
    * immediately triggered for the observer.
    */
-  public subscribe(observer: ZenObservable.Observer<TValue>) {
+  public subscribe(observer: Observer<TValue>) {
     if (this.canceled) {
       throw new Error(
         `Subscribing to a retryable link that was canceled is not supported`,
@@ -77,7 +77,7 @@ class RetryableOperation<TValue = any> {
    * If no observers remain, the operation will stop retrying, and unsubscribe
    * from its downstream link.
    */
-  public unsubscribe(observer: ZenObservable.Observer<TValue>) {
+  public unsubscribe(observer: Observer<TValue>) {
     const index = this.observers.indexOf(observer);
     if (index < 0) {
       throw new Error(

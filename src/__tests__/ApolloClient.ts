@@ -1,4 +1,5 @@
 import gql from 'graphql-tag';
+import { of } from 'rxjs';
 
 import {
   ApolloClient,
@@ -1185,7 +1186,7 @@ describe('ApolloClient', () => {
         },
       };
       const link = new ApolloLink(() => {
-        return Observable.of({ data });
+        return of({ data });
       });
       function newClient() {
         return new ApolloClient({

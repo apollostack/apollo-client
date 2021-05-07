@@ -61,9 +61,9 @@ export class ObservableQuery<
   private observers = new Set<Observer<ApolloQueryResult<TData>>>();
   private subscriptions = new Set<ObservableSubscription>();
 
-  private lastResult: ApolloQueryResult<TData>;
-  private lastResultSnapshot: ApolloQueryResult<TData>;
-  private lastError: ApolloError;
+  private lastResult?: ApolloQueryResult<TData>;
+  private lastResultSnapshot?: ApolloQueryResult<TData>;
+  private lastError?: ApolloError;
   private queryInfo: QueryInfo;
 
   constructor({
@@ -135,7 +135,7 @@ export class ObservableQuery<
       NetworkStatus.ready;
 
     const result: ApolloQueryResult<TData> = {
-      ...lastResult,
+      ...lastResult!,
       loading: isNetworkRequestInFlight(networkStatus),
       networkStatus,
     };
@@ -198,11 +198,11 @@ export class ObservableQuery<
   // Returns the last result that observer.next was called with. This is not the same as
   // getCurrentResult! If you're not sure which you need, then you probably need getCurrentResult.
   public getLastResult(): ApolloQueryResult<TData> {
-    return this.lastResult;
+    return this.lastResult!;
   }
 
   public getLastError(): ApolloError {
-    return this.lastError;
+    return this.lastError!;
   }
 
   public resetLastResults(): void {
@@ -610,7 +610,7 @@ once, rather than every time you call fetchMore.`);
       // Since we don't get the current result on errors, only the error, we
       // must mirror the updates that occur in QueryStore.markQueryError here
       this.updateLastResult({
-        ...this.lastResult,
+        ...this.lastResult!,
         error,
         errors: error.graphQLErrors,
         networkStatus: NetworkStatus.error,

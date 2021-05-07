@@ -1,6 +1,8 @@
 import { DocumentNode } from 'graphql';
 import { invariant, InvariantError } from 'ts-invariant';
 import { equal } from '@wry/equality';
+import { of } from 'rxjs';
+import { map } from 'rxjs/operators';
 
 import { ApolloLink, execute, FetchResult } from '../link/core';
 import { Cache, ApolloCache } from '../cache';
@@ -689,30 +691,32 @@ export class QueryManager<TStore> {
         context,
         variables,
         false,
-      ).map(result => {
-        if (fetchPolicy !== 'no-cache') {
-          // the subscription interface should handle not sending us results we no longer subscribe to.
-          // XXX I don't think we ever send in an object with errors, but we might in the future...
-          if (shouldWriteResult(result, errorPolicy)) {
-            this.cache.write({
-              query,
-              result: result.data,
-              dataId: 'ROOT_SUBSCRIPTION',
-              variables: variables,
-            });
-          }
+      ).pipe(
+        map(result => {
+          if (fetchPolicy !== 'no-cache') {
+            // the subscription interface should handle not sending us results we no longer subscribe to.
+            // XXX I don't think we ever send in an object with errors, but we might in the future...
+            if (shouldWriteResult(result, errorPolicy)) {
+              this.cache.write({
+                query,
+                result: result.data,
+                dataId: 'ROOT_SUBSCRIPTION',
+                variables: variables,
+              });
+            }
 
-          this.broadcastQueries();
-        }
+              this.broadcastQueries();
+            }
 
-        if (graphQLResultHasError(result)) {
-          throw new ApolloError({
-            graphQLErrors: result.errors,
-          });
-        }
+            if (graphQLResultHasError(result)) {
+              throw new ApolloError({
+                graphQLErrors: result.errors,
+              });
+            }
 
-        return result;
-      });
+            return result;
+          })
+        );
 
     if (this.transform(query).hasClientExports) {
       const observablePromise = this.localState.addExportedVariables(
@@ -804,7 +808,7 @@ export class QueryManager<TStore> {
         observable = byVariables.get(varJson);
 
         if (!observable) {
-          const concast = new Concast([
+          const concast = new Concast<FetchResult<T>>([
             execute(link, operation) as Observable<FetchResult<T>>
           ]);
 
@@ -825,7 +829,7 @@ export class QueryManager<TStore> {
       }
     } else {
       observable = new Concast([
-        Observable.of({ data: {} } as FetchResult<T>)
+        of({ data: {} } as FetchResult<T>)
       ]);
       context = this.prepareContext(context);
     }
@@ -1067,7 +1071,7 @@ export class QueryManager<TStore> {
         }`, diff.missing);
       }
 
-      const fromData = (data: TData) => Observable.of({
+      const fromData = (data: TData) => of({
         data,
         loading: isNetworkRequestInFlight(networkStatus),
         networkStatus,
