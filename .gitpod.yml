@@ -1,0 +1,11 @@
+tasks:
+  - name: Build 
+    init: | 
+      npm install
+      gp sync-done install 
+    command: npm run watch
+
+  - name: Test
+    init: gp sync-await install
+    command: npm run test:watch
+    openMode: split-right

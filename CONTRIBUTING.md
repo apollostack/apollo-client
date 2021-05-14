@@ -105,6 +105,12 @@ npm run test
 npm run test:watch
 ```
 
+### Online one-click setup
+
+You can use Gitpod(an Online VS Code like IDE) for developing online, with a single click it will launch a workspace and automatically: clone the `apollo-client` repo, install the dependencies, run `npm run watch` and `npm run test:watch`.
+
+[![Open in Gitpod](https://gitpod.io/button/open-in-gitpod.svg)](https://gitpod.io/from-referrer/)
+
 **Run specific tests:**
 
 Call jest directly making sure to pass in the jest config, and use its `testRegex` option:
