@@ -33,10 +33,14 @@ const generateErrorMessage = (err: ApolloError) => {
   return message;
 };
 
+export type GraphQLErrors = ReadonlyArray<GraphQLError>;
+
+export type NetworkError = Error | ServerParseError | ServerError | null;
+
 export class ApolloError extends Error {
   public message: string;
-  public graphQLErrors: ReadonlyArray<GraphQLError>;
-  public networkError: Error | ServerParseError | ServerError | null;
+  public graphQLErrors: GraphQLErrors;
+  public networkError: NetworkError;
 
   // An object that can be used to provide some additional information
   // about an error, e.g. specifying the type of error this is. Used
