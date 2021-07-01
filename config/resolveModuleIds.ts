@@ -54,20 +54,44 @@ function isRelative(id: string) {
 }
 
 function normalizeSourceString(file: string, source?: Node | null) {
-  if (source && n.StringLiteral.check(source) && isRelative(source.value)) {
+  if (source && n.StringLiteral.check(source)) {
     try {
-      source.value = normalizeId(source.value, file);
+      source.value = isRelative(source.value)
+        ? normalizeId(source.value, file)
+        : normalizeNonRelativeId(source.value, file);
     } catch (error) {
-      console.error(`Failed to resolve ${source.value} in ${file}`);
+      console.error(`Failed to resolve ${source.value} in ${file} with error ${error}`);
       process.exit(1);
     }
   }
+}
+
+function normalizeNonRelativeId(id: string, file: string) {
+  const normal = normalizeId(id, file);
+  const normalParts = normal.split("/");
+  const sourceParts = id.split("/");
+  const nodeModulesIndex = normalParts.lastIndexOf("node_modules");
+  if (
+    nodeModulesIndex >= 0 &&
+    normalParts[nodeModulesIndex + 1] === sourceParts[0]
+  ) {
+    const bareModuleIdentifier =
+      normalParts.slice(nodeModulesIndex + 1).join("/");
+    if (normal === normalizeId(bareModuleIdentifier, file)) {
+      return bareModuleIdentifier;
+    }
+    console.error(`Leaving ${id} import in ${file} unchanged because ${
+      bareModuleIdentifier
+    } does not resolve to the same module`);
+  }
+  return id;
 }
 
 function normalizeId(id: string, file: string) {
   const basedir = path.dirname(file);
   const absPath = resolve.sync(id, {
     basedir,
+    extensions: [".mjs", ".js"],
     packageFilter(pkg) {
       return pkg.module ? {
         ...pkg,

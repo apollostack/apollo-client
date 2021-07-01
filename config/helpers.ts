@@ -23,6 +23,7 @@ export function eachFile(dir: string, callback: (
 
         // Avoid re-transforming CommonJS bundle files.
         if (relPath.endsWith(".cjs.js")) return;
+        if (relPath.endsWith(".cjs")) return;
 
         // Avoid re-transforming CommonJS bundle files.
         if (relPath.endsWith(".min.js")) return;

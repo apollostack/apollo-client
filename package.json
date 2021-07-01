@@ -13,7 +13,7 @@
   ],
   "author": "opensource@apollographql.com",
   "license": "MIT",
-  "main": "./dist/main.cjs.js",
+  "main": "./dist/main.cjs",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "sideEffects": false,
@@ -54,8 +54,8 @@
   "bundlesize": [
     {
       "name": "apollo-client",
-      "path": "./dist/apollo-client.cjs.min.js",
-      "maxSize": "24.35 kB"
+      "path": "./dist/apollo-client.min.cjs",
+      "maxSize": "24.4 kB"
     }
   ],
   "peerDependencies": {
