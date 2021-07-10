@@ -1,6 +1,7 @@
 import { print } from 'graphql';
 import { equal } from '@wry/equality';
 import { invariant } from 'ts-invariant';
+import stringifyObject from 'stringify-object'
 
 import {
   ApolloLink,
@@ -91,7 +92,7 @@ export class MockLink extends ApolloLink {
       configError = new Error(
         `No more mocked responses for the query: ${print(
           operation.query
-        )}, variables: ${JSON.stringify(operation.variables)}`
+        )}, variables: ${stringifyObject(operation.variables)}`
       );
     } else {
       this.mockedResponsesByKey[key].splice(responseIndex, 1);

@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { FC } from 'react';
 import { render, wait } from '@testing-library/react';
 import gql from 'graphql-tag';
+import { act } from 'react-dom/test-utils';
 
 import { itAsync } from '../../itAsync';
 import { MockedProvider } from '../MockedProvider';
@@ -9,6 +10,7 @@ import { DocumentNode } from 'graphql';
 import { useQuery } from '../../../../react/hooks/useQuery';
 import { InMemoryCache } from '../../../../cache/inmemory/inMemoryCache';
 import { ApolloLink } from '../../../../link/core';
+import { QueryResult } from '../../../../react/types/types';
 
 const variables = {
   username: 'mock_username'
@@ -565,5 +567,201 @@ describe('@client testing', () => {
     );
 
     return wait().then(resolve, reject);
+  });
+});
+
+describe('missing and undefined optional fields', () => {
+  describe('no mocks available', () => {
+    it("should print correct variables when no mocks available", async () => {
+      expect.assertions(3);
+
+      const variablesWithUndefined = {
+        username: 'other_user',
+        bar: 123,
+        thisFieldIsPresentButUndefined: undefined,
+      };
+
+      let queryResult: QueryResult<Data, Variables> | undefined;
+
+      const OptionalFieldsNoMocksAvailable: FC = () => {
+        queryResult = useQuery<Data, Variables>(query, { variables: variablesWithUndefined });
+        return null;
+      };
+
+      const link = ApolloLink.from([errorLink, new MockLink([])]);
+
+      await act(async () => {
+        render(
+          <MockedProvider link={link}>
+            <OptionalFieldsNoMocksAvailable />
+          </MockedProvider>
+        );
+
+        await new Promise(resolve => setTimeout(resolve, 0));
+      });
+
+      expect(queryResult?.data).toBeUndefined();
+      expect(queryResult?.error?.message).toContain('No more mocked responses for the query');
+      expect(queryResult?.error?.message).toContain('thisFieldIsPresentButUndefined');
+    });
+  });
+
+  describe('mocks available', () => {
+    const queryWithOptionalInputFields: DocumentNode = gql`
+      # type Input {
+      #   required: String!
+      #   optional: String
+      # }
+      query OptionalFields($input: Input) {
+        user(input: $input) {
+          id
+        }
+      }
+    `;
+
+    const mockResult = { data: user };
+
+    type OptionalInputFieldVariables = {
+      input: {
+        required: string
+        optional?: string
+      }
+    };
+
+    const optionalUndefined: OptionalInputFieldVariables = {
+      input: {
+        required: "a",
+        optional: undefined,
+      }
+    };
+
+    const optionalMissing: OptionalInputFieldVariables = {
+      input: {
+        required: "a",
+      }
+    };
+
+
+    const mocksOptional = (mockVariables: OptionalInputFieldVariables) => [
+      {
+        request: {
+          query: queryWithOptionalInputFields,
+          variables: mockVariables,
+        },
+        result: mockResult,
+      },
+    ];
+
+    it("should load data when: undefined in input, undefined in mock", async () => {
+      expect.assertions(3);
+
+      let queryResult: QueryResult<Data, OptionalInputFieldVariables> | undefined;
+
+      const Component: FC = () => {
+        queryResult = useQuery<Data, OptionalInputFieldVariables>(queryWithOptionalInputFields, {
+          variables: optionalUndefined,
+        });
+        return null;
+      };
+
+      await act(async () => {
+        render(
+          <MockedProvider mocks={mocksOptional(optionalUndefined)}>
+            <Component />
+          </MockedProvider>
+        );
+
+        await new Promise(resolve => setTimeout(resolve, 0));
+      });
+
+
+      expect(queryResult?.loading).toBe(false);
+      expect(queryResult?.error).toBeUndefined();
+      expect(queryResult?.data).toEqual(mockResult);
+    });
+
+    it("should load data when: undefined in input, missing in mock", async () => {
+      expect.assertions(3);
+
+      let queryResult: QueryResult<Data, OptionalInputFieldVariables> | undefined;
+
+      const Component: FC = () => {
+        queryResult = useQuery<Data, OptionalInputFieldVariables>(queryWithOptionalInputFields, {
+          variables: optionalUndefined,
+        });
+        return null;
+      };
+
+      await act(async () => {
+        render(
+          <MockedProvider mocks={mocksOptional(optionalMissing)}>
+            <Component />
+          </MockedProvider>
+        );
+
+        await new Promise(resolve => setTimeout(resolve, 0));
+      });
+
+
+      expect(queryResult?.loading).toBe(false);
+      expect(queryResult?.error).toBeUndefined();
+      expect(queryResult?.data).toEqual(mockResult);
+    });
+
+    it("should load data when: missing in input, undefined in mock", async () => {
+      expect.assertions(3);
+
+      let queryResult: QueryResult<Data, OptionalInputFieldVariables> | undefined;
+
+      const Component: FC = () => {
+        queryResult = useQuery<Data, OptionalInputFieldVariables>(queryWithOptionalInputFields, {
+          variables: optionalMissing,
+        });
+        return null;
+      };
+
+      await act(async () => {
+        render(
+          <MockedProvider mocks={mocksOptional(optionalUndefined)}>
+            <Component />
+          </MockedProvider>
+        );
+
+        await new Promise(resolve => setTimeout(resolve, 0));
+      });
+
+
+      expect(queryResult?.loading).toBe(false);
+      expect(queryResult?.error).toBeUndefined();
+      expect(queryResult?.data).toEqual(mockResult);
+    });
+
+    it("should load data when: missing in input, missing in mock", async () => {
+      expect.assertions(3);
+
+      let queryResult: QueryResult<Data, OptionalInputFieldVariables> | undefined;
+
+      const Component: FC = () => {
+        queryResult = useQuery<Data, OptionalInputFieldVariables>(queryWithOptionalInputFields, {
+          variables: optionalMissing,
+        });
+        return null;
+      };
+
+      await act(async () => {
+        render(
+          <MockedProvider mocks={mocksOptional(optionalMissing)}>
+            <Component />
+          </MockedProvider>
+        );
+
+        await new Promise(resolve => setTimeout(resolve, 0));
+      });
+
+
+      expect(queryResult?.loading).toBe(false);
+      expect(queryResult?.error).toBeUndefined();
+      expect(queryResult?.data).toEqual(mockResult);
+    });
   });
 });
