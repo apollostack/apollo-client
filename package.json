@@ -89,7 +89,7 @@
   "devDependencies": {
     "@babel/parser": "7.14.7",
     "@graphql-tools/schema": "7.1.5",
-    "@rollup/plugin-node-resolve": "11.2.1",
+    "@rollup/plugin-node-resolve": "13.0.0",
     "@testing-library/react": "9.4.1",
     "@types/fast-json-stable-stringify": "2.0.0",
     "@types/fetch-mock": "7.3.5",
