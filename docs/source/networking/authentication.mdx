@@ -91,6 +91,32 @@ In this particular example headers are set individually for every request but yo
 
 The server can use that header to authenticate the user and attach it to the GraphQL execution context, so resolvers can modify their behavior based on a user's role and permissions.
 
+## Redirect users to a login page on authentication errors
+
+When the server sends an UNAUTHENTICATED error, it may make sense to redirect the user to a login page. To do that for any query, you can check for the `UNAUTHENTICATED` code using [`apollo-link-error`](https://www.npmjs.com/package/apollo-link-error):
+
+```jsx
+import { onError } from 'apollo-link-error';
+ 
+const link = onError(({ graphQLErrors }) => {
+  if (graphQLErrors)
+    for (const error of graphQLErrors)
+      if (error.extensions && error.extensions.code === 'UNAUTHENTICATED') {
+        // ... redirect user to login page
+      }
+});
+
+// ... create the auth link as in the example above ...
+// ... and concat the error link, before the httpLink
+export const client = new ApolloClient({
+  link: authLink.concat(errorLink).concat(httpLink),
+  cache: new InMemoryCache(),
+});
+```
+
+For expired authentication tokens in particular, see the [Retrying failed requests](https://www.npmjs.com/package/apollo-link-error#retrying-failed-requests) heading in the `apollo-link-error` documentation.
+
+
 ## Reset store on logout
 
 Since Apollo caches all of your query results, it's important to get rid of them when the login state changes.
