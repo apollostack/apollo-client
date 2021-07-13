@@ -4,11 +4,13 @@
 | `variables` | { [key: string]: any } | An object containing all of the variables your mutation needs to execute |
 | `update` | (cache: ApolloCache, mutationResult: FetchResult) | A function used to update the cache after a mutation occurs |
 | `ignoreResults`| boolean | If true, the returned `data` property will not update with the mutation result. |
+| `notifyOnNetworkStatusChange` | boolean | Whether updates to the network status or network error should re-render your component. Defaults to false. |
 | `optimisticResponse` | Object | Provide a [mutation response](/performance/optimistic-ui/) before the result comes back from the server |
 | `refetchQueries` | Array&lt;string\|{ query: DocumentNode, variables?: TVariables}&gt; \| ((mutationResult: FetchResult) => Array&lt;string\|{ query: DocumentNode, variables?: TVariables}&gt;) | An array or function that allows you to specify which queries you want to refetch after a mutation has occurred. Array values can either be queries (with optional variables) or just the string names of queries to be refetched. |
 | `awaitRefetchQueries` | boolean | Queries refetched as part of `refetchQueries` are handled asynchronously, and are not waited on before the mutation is completed (resolved). Setting this to `true` will make sure refetched queries are completed before the mutation is considered done. `false` by default. |
 | `onCompleted` | (data: TData) => void | A callback executed once your mutation successfully completes |
 | `onError` | (error: ApolloError) => void | A callback executed in the event of an error. |
+| `fetchPolicy` | FetchPolicy | How you want your component to interact with the Apollo cache. For details, see [Setting a fetch policy](https://www.apollographql.com/docs/react/data/queries/#setting-a-fetch-policy). |
 | `errorPolicy` | ErrorPolicy | How you want your component to handle network and GraphQL errors. Defaults to "none", which means we treat GraphQL errors as runtime errors. |
 | `context` | Record&lt;string, any&gt; | Shared context between your component and your network interface (Apollo Link). |
 | `client` | ApolloClient | An `ApolloClient` instance. By default `useMutation` / `Mutation` uses the client passed down via context, but a different client can be passed in. |
