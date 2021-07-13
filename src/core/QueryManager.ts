@@ -928,23 +928,17 @@ export class QueryManager<TStore> {
       context = {},
     } = options;
 
-    const mightUseNetwork =
+    const mightUseCacheAndNetwork =
       fetchPolicy === "cache-first" ||
-      fetchPolicy === "cache-and-network" ||
-      fetchPolicy === "network-only" ||
-      fetchPolicy === "no-cache";
+      fetchPolicy === "cache-and-network";
 
-    if (mightUseNetwork &&
+    if (mightUseCacheAndNetwork &&
         notifyOnNetworkStatusChange &&
         typeof oldNetworkStatus === "number" &&
         oldNetworkStatus !== networkStatus &&
         isNetworkRequestInFlight(networkStatus)) {
       // In order to force delivery of an incomplete cache result with
-      // loading:true, we tweak the fetchPolicy to include the cache, and
-      // pretend that returnPartialData was enabled.
-      if (fetchPolicy !== "cache-first") {
-        fetchPolicy = "cache-and-network";
-      }
+      // loading:true, we pretend that returnPartialData was enabled.
       returnPartialData = true;
     }
 

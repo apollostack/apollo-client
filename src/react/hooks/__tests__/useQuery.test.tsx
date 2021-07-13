@@ -1576,6 +1576,110 @@ describe('useQuery Hook', () => {
         expect(renderCount).toBe(6);
       }).then(resolve, reject);
     });
+
+    itAsync('should properly handle refetching with different variables and network-only fetchPolicy', (resolve, reject) => {
+      const carQuery: DocumentNode = gql`
+        query cars($id: Int) {
+          cars(id: $id) {
+            id
+            make
+            model
+            vin
+            __typename
+          }
+        }
+      `;
+
+      const carData1 = {
+        cars: [
+          {
+            id: 1,
+            make: 'Audi',
+            model: 'RS8',
+            vin: 'DOLLADOLLABILL',
+            __typename: 'Car'
+          }
+        ]
+      };
+
+      const carData2 = {
+        cars: [
+          {
+            id: 2,
+            make: 'Audi',
+            model: 'eTron',
+            vin: 'TREESRGOOD',
+            __typename: 'Car'
+          }
+        ]
+      };
+
+      const mocks = [
+        {
+          request: { query: carQuery, variables: { id: 1 } },
+          result: { data: carData1 }
+        },
+        {
+          request: { query: carQuery, variables: { id: 2 } },
+          result: { data: carData2 }
+        },
+        {
+          request: { query: carQuery, variables: { id: 1 } },
+          result: { data: carData1 }
+        }
+      ];
+
+      let renderCount = 0;
+      function App() {
+        const { loading, data, refetch } = useQuery(carQuery, {
+          variables: { id: 1 },
+          notifyOnNetworkStatusChange: true,
+          fetchPolicy: "network-only",
+        });
+
+        switch (renderCount) {
+          case 0:
+            expect(loading).toBeTruthy();
+            expect(data).toBeUndefined();
+            break;
+          case 1:
+            expect(loading).toBeFalsy();
+            expect(data).toEqual(carData1);
+            refetch({ id: 2 });
+            break;
+
+          // without modifying `QueryManager.ts` this assertion would be true
+          // case 2:
+          //   expect(data).toEqual({});
+          //   expect(loading).toBeTruthy();
+          //   break;
+
+          case 2:
+            expect(loading).toBeFalsy();
+            expect(data).toEqual(carData2);
+            refetch({ id: 1 });
+            break;
+          case 3:
+            expect(loading).toBeFalsy();
+            expect(data).toEqual(carData1);
+            break;
+          default:
+        }
+
+        renderCount += 1;
+        return null;
+      }
+
+      render(
+        <MockedProvider mocks={mocks}>
+          <App />
+        </MockedProvider>
+      );
+
+      return wait(() => {
+        expect(renderCount).toBe(4);
+      }).then(resolve, reject);
+    });
   });
 
   describe('Partial refetching', () => {
