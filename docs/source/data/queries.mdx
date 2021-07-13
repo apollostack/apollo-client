@@ -130,7 +130,7 @@ function DogPhoto({ breed }) {
 
 By setting the `pollInterval` to 500, you'll fetch the current breed's image from the server every 0.5 seconds. Note that if you set `pollInterval` to `0`, the query will **not** poll.
 
-> You can also start and stop polling dynamically with the `startPolling` and `stopPolling` functions that are returned by the [`useQuery` hook](https://www.apollographql.com/docs/react/api/react/hooks/#usequery).
+> You can also start and stop polling dynamically with the `startPolling` and `stopPolling` functions that are returned by the [`useQuery` hook](https://www.apollographql.com/docs/react/api/react/hooks/#usequery). When using these functions, do not set the `pollInterval` configuration option on `useQuery`, but instead, pass it as a parameter of the `startPolling` function.
 
 ### Refetching
 
