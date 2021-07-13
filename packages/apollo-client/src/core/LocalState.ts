@@ -142,10 +142,15 @@ export class LocalState<TCacheShape> {
         variables,
         this.fragmentMatcher,
         onlyRunForcedResolvers,
-      ).then(localResult => ({
-        ...remoteResult,
-        data: localResult.result,
-      }));
+      )
+        .then(localResult => ({
+          ...remoteResult,
+          data: localResult.result,
+        }))
+        .catch(error => ({
+          ...remoteResult,
+          error,
+        }));
     }
 
     return remoteResult;
@@ -168,9 +173,9 @@ export class LocalState<TCacheShape> {
       }
       invariant.warn(
         'Found @client directives in a query but no ApolloClient resolvers ' +
-        'were specified. This means ApolloClient local resolver handling ' +
-        'has been disabled, and @client directives will be passed through ' +
-        'to your link chain.',
+          'were specified. This means ApolloClient local resolver handling ' +
+          'has been disabled, and @client directives will be passed through ' +
+          'to your link chain.',
       );
     }
     return null;
@@ -192,7 +197,8 @@ export class LocalState<TCacheShape> {
         if ((cache as any).config) {
           return (cache as any).config.dataIdFromObject(obj);
         } else {
-          invariant(false,
+          invariant(
+            false,
             'To use context.getCacheKey, you need to use a cache that has ' +
               'a configurable dataIdFromObject, like apollo-cache-inmemory.',
           );
@@ -388,12 +394,14 @@ export class LocalState<TCacheShape> {
       if (resolverMap) {
         const resolve = resolverMap[aliasUsed ? fieldName : aliasedFieldName];
         if (resolve) {
-          resultPromise = Promise.resolve(resolve(
-            rootValue,
-            argumentsObjectFromField(field, variables),
-            execContext.context,
-            { field, fragmentMap: execContext.fragmentMap },
-          ));
+          resultPromise = Promise.resolve(
+            resolve(
+              rootValue,
+              argumentsObjectFromField(field, variables),
+              execContext.context,
+              { field, fragmentMap: execContext.fragmentMap },
+            ),
+          );
         }
       }
     }
@@ -458,7 +466,11 @@ export class LocalState<TCacheShape> {
 
         // This is an object, run the selection set on it.
         if (field.selectionSet) {
-          return this.resolveSelectionSet(field.selectionSet, item, execContext);
+          return this.resolveSelectionSet(
+            field.selectionSet,
+            item,
+            execContext,
+          );
         }
       }),
     );
