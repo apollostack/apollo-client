@@ -171,7 +171,7 @@ We've already seen that the `useQuery` hook exposes our query's current loading 
 Let's return to our refetching example from the previous section. If you click the refetch button, you'll see that the component doesn't re-render until the new data arrives. What if we want to indicate to the user that we're refetching the photo?
 
 The `useQuery` hook's result object provides fine-grained information about the status of the query via the `networkStatus` property. To take advantage
-of this information, we set the `notifyOnNetworkStatusChange` option to `true` so our query component re-renders while a refetch is in flight:
+of this information, we set the `notifyOnNetworkStatusChange` option to `true` so our [query component](../api/react/components/ "Components - Client (React) - Apollo GraphQL Docs") re-renders while a refetch is in flight:
 
 ```jsx:title=index.js
 import { NetworkStatus } from '@apollo/client';
