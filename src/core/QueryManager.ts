@@ -931,8 +931,7 @@ export class QueryManager<TStore> {
     const mightUseNetwork =
       fetchPolicy === "cache-first" ||
       fetchPolicy === "cache-and-network" ||
-      fetchPolicy === "network-only" ||
-      fetchPolicy === "no-cache";
+      fetchPolicy === "network-only";
 
     if (mightUseNetwork &&
         notifyOnNetworkStatusChange &&
