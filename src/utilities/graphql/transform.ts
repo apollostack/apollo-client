@@ -171,6 +171,24 @@ export function removeDirectivesFromDocument(
         },
       },
 
+      InlineFragment: {
+        enter(node) {
+          if (directives && node.directives) {
+            const shouldRemoveField = directives.some(
+              directive => directive.remove,
+            );
+
+            if (
+              shouldRemoveField &&
+                node.directives &&
+                node.directives.some(getDirectiveMatcher(directives))
+            ) {
+              return null;
+            }
+          }
+        },
+      },
+
       Directive: {
         enter(node) {
           // If a matching directive is found, remove it.
