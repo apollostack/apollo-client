@@ -1,8 +1,115 @@
-import { FieldFunctionOptions, InMemoryCache, isReference, makeReference } from '../../../core';
+import { FieldFunctionOptions, InMemoryCache, isReference, makeReference, StoreObject } from '../../../cache';
 import { relayStylePagination, TRelayPageInfo } from '../pagination';
 
 describe('relayStylePagination', () => {
   const policy = relayStylePagination();
+
+  describe('read', () => {
+    const fakeEdges = [
+      { node: { __ref: "A" }, cursor: "cursorA" },
+      { node: { __ref: "B" }, cursor: "cursorB" },
+      { node: { __ref: "C" }, cursor: "cursorC" },
+    ];
+
+    const fakeReadOptions = {
+      canRead() { return true },
+      readField(key: string, obj: StoreObject) {
+        return obj && obj[key];
+      },
+    } as any as FieldFunctionOptions;
+
+    it("should prefer existing.pageInfo.startCursor", () => {
+      const resultWithStartCursor = policy.read!({
+        edges: fakeEdges,
+        pageInfo: {
+          startCursor: "preferredStartCursor",
+          hasPreviousPage: false,
+          hasNextPage: true,
+        } as TRelayPageInfo,
+      }, fakeReadOptions);
+
+      expect(
+        resultWithStartCursor &&
+        resultWithStartCursor.pageInfo
+      ).toEqual({
+        startCursor: "preferredStartCursor",
+        endCursor: "cursorC",
+        hasPreviousPage: false,
+        hasNextPage: true,
+      });
+    });
+
+    it("should prefer existing.pageInfo.endCursor", () => {
+      const resultWithEndCursor = policy.read!({
+        edges: fakeEdges,
+        pageInfo: {
+          endCursor: "preferredEndCursor",
+          hasPreviousPage: false,
+          hasNextPage: true,
+        } as TRelayPageInfo,
+      }, fakeReadOptions);
+
+      expect(
+        resultWithEndCursor &&
+        resultWithEndCursor.pageInfo
+      ).toEqual({
+        startCursor: "cursorA",
+        endCursor: "preferredEndCursor",
+        hasPreviousPage: false,
+        hasNextPage: true,
+      });
+    });
+
+    it("should prefer existing.pageInfo.{start,end}Cursor", () => {
+      const resultWithEndCursor = policy.read!({
+        edges: fakeEdges,
+        pageInfo: {
+          startCursor: "preferredStartCursor",
+          endCursor: "preferredEndCursor",
+          hasPreviousPage: false,
+          hasNextPage: true,
+        },
+      }, fakeReadOptions);
+
+      expect(
+        resultWithEndCursor &&
+        resultWithEndCursor.pageInfo
+      ).toEqual({
+        startCursor: "preferredStartCursor",
+        endCursor: "preferredEndCursor",
+        hasPreviousPage: false,
+        hasNextPage: true,
+      });
+    });
+
+    it("should override pageInfo.{start,end}Cursor if empty strings", () => {
+      const resultWithEndCursor = policy.read!({
+        edges: [
+          { node: { __ref: "A" }, cursor: "" },
+          { node: { __ref: "B" }, cursor: "cursorB" },
+          { node: { __ref: "C" }, cursor: "" },
+          { node: { __ref: "D" }, cursor: "cursorD" },
+          { node: { __ref: "E" } },
+        ],
+        pageInfo: {
+          startCursor: "",
+          endCursor: "",
+          hasPreviousPage: false,
+          hasNextPage: true,
+        },
+      }, fakeReadOptions);
+
+      expect(
+        resultWithEndCursor &&
+        resultWithEndCursor.pageInfo
+      ).toEqual({
+        startCursor: "cursorB",
+        endCursor: "cursorD",
+        hasPreviousPage: false,
+        hasNextPage: true,
+      });
+    });
+  });
 
   describe('merge', () => {
     const merge = policy.merge;

@@ -3461,7 +3461,7 @@ describe("type policies", function () {
                 edges,
                 pageInfo: {
                   __typename: "PageInfo",
-                  startCursor: thirdPageInfo.startCursor,
+                  startCursor: fourthPageInfo.startCursor,
                   endCursor: fifthPageInfo.endCursor,
                   hasPreviousPage: false,
                   hasNextPage: true,

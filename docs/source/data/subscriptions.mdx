@@ -198,11 +198,11 @@ const COMMENTS_SUBSCRIPTION = gql`
 `;
 
 function LatestComment({ postID }) {
-  const { data: { commentAdded }, loading } = useSubscription(
+  const { data, loading } = useSubscription(
     COMMENTS_SUBSCRIPTION,
     { variables: { postID } }
   );
-  return <h4>New comment: {!loading && commentAdded.content}</h4>;
+  return <h4>New comment: {!loading && data.commentAdded.content}</h4>;
 }
 ```
 

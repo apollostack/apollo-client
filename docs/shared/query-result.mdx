@@ -183,7 +183,7 @@ This field is only present on the result object returned by [`useLazyQuery`](htt
 
 A function that enables you to re-execute the query, optionally passing in new `variables`.
 
-The followup execution's `fetchPolicy` is set to `network-only` if the original query's `fetchPolicy` isn't guaranteed to send a network request (such as with `cache-first`).
+The `fetchPolicy` for the refetched query will be set to `network-only`, unless the `fetchPolicy` is already `no-cache` or `cache-and-network` (which also guarantee a network request).
 
 See also [Refetching](https://www.apollographql.com/docs/react/data/queries/#refetching).
 
