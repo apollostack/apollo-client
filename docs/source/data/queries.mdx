@@ -405,18 +405,13 @@ import React, { useState } from 'react';
 import { useLazyQuery } from '@apollo/react-hooks';
 
 function DelayedQuery() {
-  const [dog, setDog] = useState(null);
   const [getDog, { loading, data }] = useLazyQuery(GET_DOG_PHOTO);
 
   if (loading) return <p>Loading ...</p>;
 
-  if (data && data.dog) {
-    setDog(data.dog);
-  }
-
   return (
     <div>
-      {dog && <img src={dog.displayImage} />}
+      {data && data.dog && <img src={data.dog.displayImage} />}
       <button onClick={() => getDog({ variables: { breed: 'bulldog' } })}>
         Click me!
       </button>
