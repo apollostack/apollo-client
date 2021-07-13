@@ -24,3 +24,4 @@ Thank you to all the Apollo community members who have contributed custom Apollo
 | [apollo-link-serialize](https://github.com/helfer/apollo-link-serialize) | [@helfer](https://github.com/helfer) | Serializes requests by key to ensure execution order. |
 | [apollo-link-debounce](https://github.com/helfer/apollo-link-debounce) | [@helfer](https://github.com/helfer) | Debounce requests made within an interval. |
 | [apollo-link-segment](https://github.com/hobochild/apollo-link-segment) | [@hobochild](https://github.com/hobochild) | Automatically track apollo operations with [segment](https://segment.com/). |
+| [apollo-link-observable](https://github.com/dragozin/apollo-link-observable) | [@dragozin](https://github.com/dragozin) | Link that allows you to make side effects of graphql queries using [RxJS](http://github.com/ReactiveX/RxJS). |
