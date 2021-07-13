@@ -142,8 +142,8 @@ export type QueryTuple<TData, TVariables> = [
 
 /* Mutation types */
 
-export type RefetchQueriesFunction = (
-  ...args: any[]
+export type RefetchQueriesFunction<TData> = (
+  result: FetchResult<TData>
 ) => Array<string | PureQueryOptions>;
 
 export interface BaseMutationOptions<
@@ -152,7 +152,7 @@ export interface BaseMutationOptions<
 > {
   variables?: TVariables;
   optimisticResponse?: TData | ((vars: TVariables) => TData);
-  refetchQueries?: Array<string | PureQueryOptions> | RefetchQueriesFunction;
+  refetchQueries?: Array<string | PureQueryOptions> | RefetchQueriesFunction<TData>;
   awaitRefetchQueries?: boolean;
   errorPolicy?: ErrorPolicy;
   update?: MutationUpdaterFn<TData>;
@@ -171,7 +171,7 @@ export interface MutationFunctionOptions<
 > {
   variables?: TVariables;
   optimisticResponse?: TData | ((vars: TVariables) => TData);
-  refetchQueries?: Array<string | PureQueryOptions> | RefetchQueriesFunction;
+  refetchQueries?: Array<string | PureQueryOptions> | RefetchQueriesFunction<TData>;
   awaitRefetchQueries?: boolean;
   update?: MutationUpdaterFn<TData>;
   context?: Context;
