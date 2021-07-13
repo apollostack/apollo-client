@@ -174,7 +174,7 @@ const cache = new InMemoryCache({
     AllProducts: {
       // Singleton types that have no identifying field can use an empty
       // array for their keyFields.
-      keyFields: [],
+      keyFields: false,
     },
     Product: {
       // In most inventory management systems, a single UPC code uniquely
