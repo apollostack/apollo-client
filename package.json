@@ -122,7 +122,7 @@
     "rxjs": "6.6.7",
     "subscriptions-transport-ws": "0.9.19",
     "terser": "5.7.1",
-    "ts-jest": "26.5.6",
+    "ts-jest": "27.0.3",
     "ts-node": "10.1.0",
     "typescript": "3.9.10",
     "wait-for-observables": "1.0.3"
