@@ -1,5 +1,16 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
+exports[`Cache cache.restore replaces cache.{store{Reader,Writer},maybeBroadcastWatch} 1`] = `
+Object {
+  "ROOT_QUERY": Object {
+    "__typename": "Query",
+    "a": "ay",
+    "b": "bee",
+    "c": "see",
+  },
+}
+`;
+
 exports[`Cache writeFragment will write some deeply nested data into the store at any id (1/2) 1`] = `
 Object {
   "__META": Object {

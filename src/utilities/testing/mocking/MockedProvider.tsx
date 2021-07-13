@@ -1,4 +1,4 @@
-import React from 'react';
+import * as React from 'react';
 
 import { ApolloClient, DefaultOptions } from '../../../core';
 import { InMemoryCache as Cache } from '../../../cache';

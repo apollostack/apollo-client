@@ -26,9 +26,13 @@ export class RenderPromises {
   // beyond a single call to renderToStaticMarkup.
   private queryInfoTrie = new Map<DocumentNode, Map<string, QueryInfo>>();
 
-  public clear() {
-    this.queryPromises.clear();
-    this.queryInfoTrie.clear();
+  private stopped = false;
+  public stop() {
+    if (!this.stopped) {
+      this.queryPromises.clear();
+      this.queryInfoTrie.clear();
+      this.stopped = true;
+    }
   }
 
   // Registers the server side rendered observable.
@@ -36,6 +40,7 @@ export class RenderPromises {
     observable: ObservableQuery<any, TVariables>,
     props: QueryDataOptions<TData, TVariables>
   ) {
+    if (this.stopped) return;
     this.lookupQueryInfo(props).observable = observable;
   }
 
@@ -50,17 +55,19 @@ export class RenderPromises {
     queryInstance: QueryData<TData, TVariables>,
     finish: () => React.ReactNode
   ): React.ReactNode {
-    const info = this.lookupQueryInfo(queryInstance.getOptions());
-    if (!info.seen) {
-      this.queryPromises.set(
-        queryInstance.getOptions(),
-        new Promise(resolve => {
-          resolve(queryInstance.fetchData());
-        })
-      );
-      // Render null to abandon this subtree for this rendering, so that we
-      // can wait for the data to arrive.
-      return null;
+    if (!this.stopped) {
+      const info = this.lookupQueryInfo(queryInstance.getOptions());
+      if (!info.seen) {
+        this.queryPromises.set(
+          queryInstance.getOptions(),
+          new Promise(resolve => {
+            resolve(queryInstance.fetchData());
+          })
+        );
+        // Render null to abandon this subtree for this rendering, so that we
+        // can wait for the data to arrive.
+        return null;
+      }
     }
     return finish();
   }

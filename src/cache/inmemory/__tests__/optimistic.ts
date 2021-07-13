@@ -431,7 +431,7 @@ describe('optimistic cache layers', () => {
 
     const resultAfterRemovingBuzzLayer = readWithAuthors();
     expect(resultAfterRemovingBuzzLayer).toEqual(resultWithBuzz);
-    expect(resultAfterRemovingBuzzLayer).not.toBe(resultWithBuzz);
+    expect(resultAfterRemovingBuzzLayer).toBe(resultWithBuzz);
     resultWithTwoAuthors.books.forEach((book, i) => {
       expect(book).toEqual(resultAfterRemovingBuzzLayer.books[i]);
       expect(book).toBe(resultAfterRemovingBuzzLayer.books[i]);

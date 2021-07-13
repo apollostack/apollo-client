@@ -1,0 +1,37 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`reading from the store propagates eviction signals to parent queries 1`] = `
+[MockFunction] {
+  "calls": Array [
+    Array [
+      "Missing field 'children' while writing result {
+  \\"__typename\\": \\"Deity\\",
+  \\"name\\": \\"Zeus\\"
+}",
+    ],
+  ],
+  "results": Array [
+    Object {
+      "type": "return",
+      "value": undefined,
+    },
+  ],
+}
+`;
+
+exports[`reading from the store returns === results for different queries 1`] = `
+Object {
+  "ROOT_QUERY": Object {
+    "__typename": "Query",
+    "a": Array [
+      "a",
+      "y",
+      "y",
+    ],
+    "b": Object {
+      "c": "C",
+      "d": "D",
+    },
+  },
+}
+`;

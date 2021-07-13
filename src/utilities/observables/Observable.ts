@@ -1,12 +1,19 @@
-import Observable from 'zen-observable';
+import {
+  Observable,
+  Observer,
+  Subscription as ObservableSubscription,
+  Subscriber,
+} from 'zen-observable-ts';
 
 // This simplified polyfill attempts to follow the ECMAScript Observable
 // proposal (https://github.com/zenparsing/es-observable)
 import 'symbol-observable';
 
-export type ObservableSubscription = ZenObservable.Subscription;
-export type Observer<T> = ZenObservable.Observer<T>;
-export type Subscriber<T> = ZenObservable.Subscriber<T>;
+export type {
+  Observer,
+  ObservableSubscription,
+  Subscriber,
+};
 
 // The zen-observable package defines Observable.prototype[Symbol.observable]
 // when Symbol is supported, but RxJS interop depends on also setting this fake

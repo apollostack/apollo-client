@@ -62,6 +62,7 @@ fs.copyFileSync(`${srcDir}/LICENSE`,  `${destDir}/LICENSE`);
 entryPoints.forEach(function buildPackageJson({
   dirs,
   bundleName = dirs[dirs.length - 1],
+  sideEffects = false,
 }) {
   if (!dirs.length) return;
   fs.writeFileSync(
@@ -71,7 +72,7 @@ entryPoints.forEach(function buildPackageJson({
       main: `${bundleName}.cjs.js`,
       module: 'index.js',
       types: 'index.d.ts',
-      sideEffects: false,
+      sideEffects,
     }, null, 2) + "\n",
   );
 });

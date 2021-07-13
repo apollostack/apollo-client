@@ -67,7 +67,7 @@ describe('RetryLink', () => {
     const firstTry = fromError(standardError);
     // Hold the test hostage until we're hit
     let secondTry;
-    const untilSecondTry = new Promise(resolve => {
+    const untilSecondTry = new Promise<void>(resolve => {
       secondTry = {
         subscribe(observer: any) {
           resolve(); // Release hold on test.

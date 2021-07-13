@@ -190,7 +190,7 @@ describe('GraphQL Subscriptions', () => {
     const promises = [];
     for (let i = 0; i < 2; i += 1) {
       promises.push(
-        new Promise((resolve, reject) => {
+        new Promise<void>((resolve, reject) => {
           obs.subscribe({
             next(result) {
               fail('Should have hit the error block');
@@ -234,7 +234,7 @@ describe('GraphQL Subscriptions', () => {
       cache: new InMemoryCache({ addTypename: false }),
     });
 
-    return new Promise(resolve => {
+    return new Promise<void>(resolve => {
       client.subscribe(defaultOptions).subscribe({
         complete() {
           resolve();

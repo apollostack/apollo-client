@@ -1,6 +1,6 @@
 {
   "name": "@apollo/client",
-  "version": "3.3.21",
+  "version": "3.4.0-rc.19",
   "description": "A fully-featured caching GraphQL client.",
   "private": true,
   "keywords": [
@@ -49,13 +49,13 @@
     "coverage": "jest --config ./config/jest.config.js --verbose --coverage",
     "bundlesize": "npm run build && bundlesize",
     "predeploy": "npm run build",
-    "deploy": "cd dist && npm publish"
+    "deploy": "cd dist && npm publish --tag beta"
   },
   "bundlesize": [
     {
       "name": "apollo-client",
       "path": "./dist/apollo-client.cjs.min.js",
-      "maxSize": "25.6 kB"
+      "maxSize": "24.6 kB"
     }
   ],
   "peerDependencies": {
@@ -73,18 +73,17 @@
   },
   "dependencies": {
     "@graphql-typed-document-node/core": "^3.0.0",
-    "@types/zen-observable": "^0.8.0",
     "@wry/context": "^0.6.0",
     "@wry/equality": "^0.5.0",
-    "fast-json-stable-stringify": "^2.0.0",
-    "graphql-tag": "^2.12.0",
+    "@wry/trie": "^0.3.0",
+    "graphql-tag": "^2.12.3",
     "hoist-non-react-statics": "^3.3.2",
-    "optimism": "^0.16.0",
+    "optimism": "^0.16.1",
     "prop-types": "^15.7.2",
     "symbol-observable": "^4.0.0",
-    "ts-invariant": "^0.8.0",
-    "tslib": "^1.10.0",
-    "zen-observable": "^0.8.14"
+    "ts-invariant": "^0.9.0",
+    "tslib": "^2.3.0",
+    "zen-observable-ts": "^1.1.0"
   },
   "devDependencies": {
     "@babel/parser": "7.14.7",
@@ -117,14 +116,14 @@
     "recompose": "0.30.0",
     "resolve": "1.20.0",
     "rimraf": "3.0.2",
-    "rollup": "1.32.1",
+    "rollup": "2.50.5",
     "rollup-plugin-terser": "7.0.2",
     "rxjs": "6.6.7",
     "subscriptions-transport-ws": "0.9.19",
     "terser": "5.7.1",
     "ts-jest": "26.5.6",
     "ts-node": "10.1.0",
-    "typescript": "3.9.10",
+    "typescript": "4.3.3",
     "wait-for-observables": "1.0.3"
   },
   "publishConfig": {

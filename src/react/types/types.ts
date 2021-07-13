@@ -4,25 +4,26 @@ import { TypedDocumentNode } from '@graphql-typed-document-node/core';
 
 import { Observable } from '../../utilities';
 import { FetchResult } from '../../link/core';
-import { ApolloClient } from '../../core';
 import { ApolloError } from '../../errors';
 import {
+  ApolloCache,
+  ApolloClient,
   ApolloQueryResult,
-  ErrorPolicy,
+  DefaultContext,
   FetchMoreOptions,
   FetchMoreQueryOptions,
   FetchPolicy,
-  MutationUpdaterFn,
+  MutationOptions,
   NetworkStatus,
   ObservableQuery,
   OperationVariables,
-  PureQueryOptions,
-  WatchQueryFetchPolicy,
+  InternalRefetchQueriesInclude,
+  WatchQueryOptions,
 } from '../../core';
 
 /* Common types */
 
-export type Context = Record<string, any>;
+export type { DefaultContext as Context } from "../../core";
 
 export type CommonOptions<TOptions> = TOptions & {
   client?: ApolloClient<object>;
@@ -30,18 +31,11 @@ export type CommonOptions<TOptions> = TOptions & {
 
 /* Query types */
 
-export interface BaseQueryOptions<TVariables = OperationVariables> {
+export interface BaseQueryOptions<TVariables = OperationVariables>
+extends Omit<WatchQueryOptions<TVariables>, "query"> {
   ssr?: boolean;
-  variables?: TVariables;
-  fetchPolicy?: WatchQueryFetchPolicy;
-  nextFetchPolicy?: WatchQueryFetchPolicy;
-  errorPolicy?: ErrorPolicy;
-  pollInterval?: number;
   client?: ApolloClient<any>;
-  notifyOnNetworkStatusChange?: boolean;
-  context?: Context;
-  partialRefetch?: boolean;
-  returnPartialData?: boolean;
+  context?: DefaultContext;
 }
 
 export interface QueryFunctionOptions<
@@ -63,14 +57,13 @@ export type ObservableQueryFields<TData, TVariables> = Pick<
   | 'refetch'
   | 'variables'
 > & {
-  fetchMore: (<K extends keyof TVariables>(
-    fetchMoreOptions: FetchMoreQueryOptions<TVariables, K, TData> &
+  fetchMore: ((
+    fetchMoreOptions: FetchMoreQueryOptions<TVariables, TData> &
       FetchMoreOptions<TData, TVariables>
   ) => Promise<ApolloQueryResult<TData>>) &
-    (<TData2, TVariables2, K extends keyof TVariables2>(
+    (<TData2, TVariables2>(
       fetchMoreOptions: { query?: DocumentNode | TypedDocumentNode<TData, TVariables> } & FetchMoreQueryOptions<
         TVariables2,
-        K,
         TData
       > &
         FetchMoreOptions<TData2, TVariables2>
@@ -108,7 +101,7 @@ export interface LazyQueryHookOptions<
 
 export interface QueryLazyOptions<TVariables> {
   variables?: TVariables;
-  context?: Context;
+  context?: DefaultContext;
 }
 
 type UnexecutedLazyFields = {
@@ -144,38 +137,31 @@ export type QueryTuple<TData, TVariables> = [
 
 export type RefetchQueriesFunction = (
   ...args: any[]
-) => Array<string | PureQueryOptions>;
+) => InternalRefetchQueriesInclude;
 
 export interface BaseMutationOptions<
-  TData = any,
-  TVariables = OperationVariables
+  TData,
+  TVariables extends OperationVariables,
+  TContext extends DefaultContext = DefaultContext,
+  TCache extends ApolloCache<any> = ApolloCache<any>
+> extends Omit<
+  MutationOptions<TData, TVariables, TContext, TCache>,
+  | "mutation"
 > {
-  variables?: TVariables;
-  optimisticResponse?: TData | ((vars: TVariables) => TData);
-  refetchQueries?: Array<string | PureQueryOptions> | RefetchQueriesFunction;
-  awaitRefetchQueries?: boolean;
-  errorPolicy?: ErrorPolicy;
-  update?: MutationUpdaterFn<TData>;
   client?: ApolloClient<object>;
   notifyOnNetworkStatusChange?: boolean;
-  context?: Context;
   onCompleted?: (data: TData) => void;
   onError?: (error: ApolloError) => void;
-  fetchPolicy?: Extract<WatchQueryFetchPolicy, 'no-cache'>;
   ignoreResults?: boolean;
 }
 
 export interface MutationFunctionOptions<
-  TData = any,
-  TVariables = OperationVariables
-> {
-  variables?: TVariables;
-  optimisticResponse?: TData | ((vars: TVariables) => TData);
-  refetchQueries?: Array<string | PureQueryOptions> | RefetchQueriesFunction;
-  awaitRefetchQueries?: boolean;
-  update?: MutationUpdaterFn<TData>;
-  context?: Context;
-  fetchPolicy?: WatchQueryFetchPolicy;
+  TData,
+  TVariables,
+  TContext,
+  TCache extends ApolloCache<any>,
+> extends BaseMutationOptions<TData, TVariables, TContext, TCache> {
+  mutation?: DocumentNode | TypedDocumentNode<TData, TVariables>;
 }
 
 export interface MutationResult<TData = any> {
@@ -188,26 +174,34 @@ export interface MutationResult<TData = any> {
 
 export declare type MutationFunction<
   TData = any,
-  TVariables = OperationVariables
+  TVariables = OperationVariables,
+  TContext = DefaultContext,
+  TCache extends ApolloCache<any> = ApolloCache<any>,
 > = (
-  options?: MutationFunctionOptions<TData, TVariables>
+  options?: MutationFunctionOptions<TData, TVariables, TContext, TCache>
 ) => Promise<FetchResult<TData>>;
 
 export interface MutationHookOptions<
   TData = any,
-  TVariables = OperationVariables
-> extends BaseMutationOptions<TData, TVariables> {
+  TVariables = OperationVariables,
+  TContext = DefaultContext,
+  TCache extends ApolloCache<any> = ApolloCache<any>,
+> extends BaseMutationOptions<TData, TVariables, TContext, TCache> {
   mutation?: DocumentNode | TypedDocumentNode<TData, TVariables>;
 }
 
-export interface MutationDataOptions<TData = any, TVariables = OperationVariables>
-  extends BaseMutationOptions<TData, TVariables> {
+export interface MutationDataOptions<
+  TData,
+  TVariables extends OperationVariables,
+  TContext extends DefaultContext,
+  TCache extends ApolloCache<any>,
+> extends BaseMutationOptions<TData, TVariables, TContext, TCache> {
   mutation: DocumentNode | TypedDocumentNode<TData, TVariables>;
 }
 
-export type MutationTuple<TData, TVariables> = [
+export type MutationTuple<TData, TVariables, TContext, TCache extends ApolloCache<any>> = [
   (
-    options?: MutationFunctionOptions<TData, TVariables>
+    options?: MutationFunctionOptions<TData, TVariables, TContext, TCache>
   ) => Promise<FetchResult<TData>>,
   MutationResult<TData>
 ];
@@ -230,7 +224,7 @@ export interface BaseSubscriptionOptions<
     | ((options: BaseSubscriptionOptions<TData, TVariables>) => boolean);
   client?: ApolloClient<object>;
   skip?: boolean;
-  context?: Context;
+  context?: DefaultContext;
   onSubscriptionData?: (options: OnSubscriptionDataOptions<TData>) => any;
   onSubscriptionComplete?: () => void;
 }

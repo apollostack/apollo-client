@@ -14,7 +14,9 @@ exports[`General use should error if the query in the mock and component do not 
     __typename
   }
 }
-, variables: {"username":"mock_username"}]
+
+Expected variables: {"username":"mock_username"}
+]
 `;
 
 exports[`General use should error if the variables do not deep equal 1`] = `
@@ -24,7 +26,12 @@ exports[`General use should error if the variables do not deep equal 1`] = `
     __typename
   }
 }
-, variables: {"username":"some_user","age":42}]
+
+Expected variables: {"username":"some_user","age":42}
+
+Failed to match 1 mock for this query, which had the following variables:
+  {"age":13,"username":"some_user"}
+]
 `;
 
 exports[`General use should error if the variables in the mock and component do not match 1`] = `
@@ -34,7 +41,12 @@ exports[`General use should error if the variables in the mock and component do 
     __typename
   }
 }
-, variables: {"username":"other_user"}]
+
+Expected variables: {"username":"other_user","age":<undefined>}
+
+Failed to match 1 mock for this query, which had the following variables:
+  {"username":"mock_username"}
+]
 `;
 
 exports[`General use should mock the data 1`] = `
@@ -64,7 +76,9 @@ exports[`General use should return "No more mocked responses" errors in response
     __typename
   }
 }
-, variables: {}]
+
+Expected variables: {}
+]
 `;
 
 exports[`General use should support custom error handling using setOnError 1`] = `
@@ -74,5 +88,7 @@ exports[`General use should support custom error handling using setOnError 1`] =
     __typename
   }
 }
-, variables: {"username":"mock_username"}]
+
+Expected variables: {"username":"mock_username"}
+]
 `;

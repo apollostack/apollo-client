@@ -1,14 +1,14 @@
-import React, { useState, useReducer, Fragment } from 'react';
+import React, { useState, useReducer, Fragment, useEffect } from 'react';
 import { DocumentNode, GraphQLError } from 'graphql';
 import gql from 'graphql-tag';
-import { render, cleanup, wait } from '@testing-library/react';
+import { render, cleanup, wait, act } from '@testing-library/react';
 
 import { ApolloClient, NetworkStatus, TypedDocumentNode, WatchQueryFetchPolicy } from '../../../core';
 import { InMemoryCache } from '../../../cache';
 import { ApolloProvider } from '../../context';
 import { Observable, Reference, concatPagination } from '../../../utilities';
 import { ApolloLink } from '../../../link/core';
-import { itAsync, MockLink, MockedProvider, mockSingleLink } from '../../../testing';
+import { itAsync, MockLink, MockedProvider, mockSingleLink, withErrorSpy } from '../../../testing';
 import { useQuery } from '../useQuery';
 import { useMutation } from '../useMutation';
 import { QueryFunctionOptions } from '../..';
@@ -548,6 +548,109 @@ describe('useQuery Hook', () => {
       }).then(resolve, reject);
     });
 
+    itAsync('should start polling when skip goes from true to false', (resolve, reject) => {
+      const query = gql`
+        query car {
+          car {
+            id
+            make
+          }
+        }
+      `;
+
+      const data1 = {
+        car: {
+          id: 1,
+          make: 'Venturi',
+          __typename: 'Car',
+        }
+      };
+
+      const data2 = {
+        car: {
+          id: 2,
+          make: 'Wiesmann',
+          __typename: 'Car',
+        }
+      };
+
+      const mocks = [
+        { request: { query }, result: { data: data1 } },
+        { request: { query }, result: { data: data2 } }
+      ];
+
+      let renderCount = 0;
+      const Component = () => {
+        const [shouldSkip, setShouldSkip] = useState(false);
+        let { data, loading, stopPolling } = useQuery(query, {
+          pollInterval: 100,
+          skip: shouldSkip,
+        });
+
+        switch (++renderCount) {
+          case 1:
+            expect(loading).toBeTruthy();
+            expect(data).toBeUndefined();
+            break;
+          case 2:
+            expect(loading).toBeFalsy();
+            expect(data).toEqual(data1);
+            setShouldSkip(true);
+            break;
+          case 3:
+            expect(loading).toBeFalsy();
+            expect(data).toBeUndefined();
+            setShouldSkip(false);
+            break;
+          case 4:
+            expect(loading).toBeFalsy();
+            expect(data).toEqual(data1);
+            break;
+          case 5:
+            expect(loading).toBeFalsy();
+            expect(data).toEqual(data2);
+            stopPolling();
+            break;
+          default:
+            reject(new Error('too many updates'));
+        }
+
+        return null;
+      };
+
+      render(
+        <MockedProvider link={new MockLink(mocks).setOnError(reject)}>
+          <Component />
+        </MockedProvider>
+      );
+
+      return wait(() => {
+        expect(renderCount).toBe(5);
+      }).then(resolve, reject);
+    });
+
+    function useStatefulUnmount() {
+      const [queryMounted, setQueryMounted] = useState(true);
+
+      let mounted = false;
+      useEffect(() => {
+        mounted = true;
+        expect(queryMounted).toBe(true);
+        return () => {
+          mounted = false;
+        };
+      }, []);
+
+      return {
+        mounted: queryMounted,
+        unmount() {
+          if (mounted) {
+            setQueryMounted(mounted = false);
+          }
+        },
+      };
+    }
+
     itAsync('should stop polling when the component is unmounted', async (resolve, reject) => {
       const mocks = [
         ...CAR_MOCKS,
@@ -571,7 +674,7 @@ describe('useQuery Hook', () => {
             expect(loading).toBeFalsy();
             expect(data).toEqual(CAR_RESULT_DATA);
             expect(linkRequestSpy).toHaveBeenCalledTimes(1);
-            unmount();
+            setTimeout(unmount, 10);
             break;
           default:
             reject("unreached");
@@ -580,9 +683,8 @@ describe('useQuery Hook', () => {
       };
 
       const Component = () => {
-        const [queryMounted, setQueryMounted] = useState(true);
-        const unmount = () => setTimeout(() => setQueryMounted(false), 0);
-        return <>{queryMounted && <QueryComponent unmount={unmount} />}</>;
+        const { mounted, unmount } = useStatefulUnmount();
+        return <>{mounted && <QueryComponent unmount={unmount} />}</>;
       };
 
       render(
@@ -593,6 +695,61 @@ describe('useQuery Hook', () => {
 
       return wait(() => {
         expect(linkRequestSpy).toHaveBeenCalledTimes(1);
+        expect(renderCount).toBe(2);
+      }).then(resolve, reject);
+    });
+
+    itAsync('should stop polling when the component is unmounted when using StrictMode', async (resolve, reject) => {
+      const mocks = [
+        ...CAR_MOCKS,
+        ...CAR_MOCKS,
+        ...CAR_MOCKS,
+        ...CAR_MOCKS,
+      ];
+
+      const mockLink = new MockLink(mocks).setOnError(reject);
+
+      const linkRequestSpy = jest.spyOn(mockLink, 'request');
+
+      let renderCount = 0;
+      const QueryComponent = ({ unmount }: { unmount: () => void }) => {
+        const { data, loading } = useQuery(CAR_QUERY, { pollInterval: 10 });
+        switch (++renderCount) {
+          case 1:
+          case 2:
+            expect(loading).toBeTruthy();
+            break;
+          case 3:
+          case 4:
+            expect(loading).toBeFalsy();
+            expect(data).toEqual(CAR_RESULT_DATA);
+            expect(linkRequestSpy).toHaveBeenCalledTimes(1);
+            if (renderCount === 3) {
+              setTimeout(unmount, 10);
+            }
+            break;
+          default:
+            reject("unreached");
+        }
+        return null;
+      };
+
+      const Component = () => {
+        const { mounted, unmount } = useStatefulUnmount();
+        return <>{mounted && <QueryComponent unmount={unmount} />}</>;
+      };
+
+      render(
+        <React.StrictMode>
+          <MockedProvider mocks={CAR_MOCKS} link={mockLink}>
+            <Component />
+          </MockedProvider>
+        </React.StrictMode>
+      );
+
+      return wait(() => {
+        expect(linkRequestSpy).toHaveBeenCalledTimes(1);
+        expect(renderCount).toBe(4);
       }).then(resolve, reject);
     });
 
@@ -637,6 +794,69 @@ describe('useQuery Hook', () => {
           expect(renderCount).toBe(2);
         }).then(resolve, reject);
       }
+    );
+
+    itAsync(
+      'stop polling and start polling should work with StrictMode',
+      (resolve, reject) => {
+        const query = gql`
+          query car {
+            car {
+              id
+              make
+            }
+          }
+        `;
+
+        const data1 = {
+          car: {
+            id: 1,
+            make: 'Venturi',
+            __typename: 'Car',
+          }
+        };
+
+        const mocks = [
+          { request: { query }, result: { data: data1 } },
+        ];
+
+        let renderCount = 0;
+        const Component = () => {
+          let { data, loading, stopPolling } = useQuery(query, {
+            pollInterval: 100,
+          });
+
+          switch (++renderCount) {
+            case 1:
+            case 2:
+              expect(loading).toBeTruthy();
+              expect(data).toBeUndefined();
+              break;
+            case 3:
+            case 4:
+              expect(loading).toBeFalsy();
+              expect(data).toEqual(data1);
+              stopPolling();
+              break;
+            default:
+              reject(new Error('Unexpected render count'));
+          }
+
+          return null;
+        };
+
+        render(
+          <React.StrictMode>
+            <MockedProvider link={new MockLink(mocks).setOnError(reject)}>
+              <Component />
+            </MockedProvider>
+          </React.StrictMode>
+        );
+
+        return wait(() => {
+          expect(renderCount).toBe(4);
+        }).then(() => setTimeout(resolve, 300), reject);
+      },
     );
 
     it('should set called to true by default', () => {
@@ -1578,8 +1798,370 @@ describe('useQuery Hook', () => {
     });
   });
 
+  describe('options.refetchWritePolicy', () => {
+    const query = gql`
+      query GetPrimes ($min: number, $max: number) {
+        primes(min: $min, max: $max)
+      }
+    `;
+
+    const mocks = [
+      {
+        request: {
+          query,
+          variables: { min: 0, max: 12 },
+        },
+        result: {
+          data: {
+            primes: [2, 3, 5, 7, 11],
+          }
+        }
+      },
+      {
+        request: {
+          query,
+          variables: { min: 12, max: 30 },
+        },
+        result: {
+          data: {
+            primes: [13, 17, 19, 23, 29],
+          }
+        }
+      },
+    ];
+
+    itAsync('should support explicit "overwrite"', (resolve, reject) => {
+      const mergeParams: [any, any][] = [];
+      const cache = new InMemoryCache({
+        typePolicies: {
+          Query: {
+            fields: {
+              primes: {
+                keyArgs: false,
+                merge(existing, incoming) {
+                  mergeParams.push([existing, incoming]);
+                  return existing ? [
+                    ...existing,
+                    ...incoming,
+                  ] : incoming;
+                },
+              },
+            },
+          },
+        },
+      });
+
+      let renderCount = 0;
+
+      function App() {
+        const {
+          loading,
+          networkStatus,
+          data,
+          error,
+          refetch,
+        } = useQuery(query, {
+          variables: { min: 0, max: 12 },
+          notifyOnNetworkStatusChange: true,
+          // This is the key line in this test.
+          refetchWritePolicy: "overwrite",
+        });
+
+        switch (++renderCount) {
+          case 1:
+            expect(loading).toBeTruthy();
+            expect(error).toBeUndefined();
+            expect(data).toBeUndefined();
+            expect(typeof refetch).toBe('function');
+            break;
+          case 2:
+            expect(loading).toBe(false);
+            expect(error).toBeUndefined();
+            expect(data).toEqual({
+              primes: [2, 3, 5, 7, 11],
+            });
+            expect(mergeParams).toEqual([
+              [void 0, [2, 3, 5, 7, 11]],
+            ]);
+            act(() => {
+              refetch({
+                min: 12,
+                max: 30,
+              }).then(result => {
+                expect(result).toEqual({
+                  loading: false,
+                  networkStatus: NetworkStatus.ready,
+                  data: {
+                    primes: [13, 17, 19, 23, 29],
+                  },
+                });
+              });
+            });
+            break;
+          case 3:
+            expect(loading).toBe(true);
+            expect(error).toBeUndefined();
+            expect(data).toEqual({
+              // We get the stale data because we configured keyArgs: false.
+              primes: [2, 3, 5, 7, 11],
+            });
+            // This networkStatus is setVariables instead of refetch because
+            // we called refetch with new variables.
+            expect(networkStatus).toBe(NetworkStatus.setVariables);
+            break;
+          case 4:
+            expect(loading).toBe(false);
+            expect(error).toBeUndefined();
+            expect(data).toEqual({
+              primes: [13, 17, 19, 23, 29],
+            });
+            expect(mergeParams).toEqual([
+              [void 0, [2, 3, 5, 7, 11]],
+              // Without refetchWritePolicy: "overwrite", this array will be
+              // all 10 primes (2 through 29) together.
+              [void 0, [13, 17, 19, 23, 29]],
+            ]);
+            break;
+          default:
+            reject("too many renders");
+        }
+
+        return null;
+      }
+
+      render(
+        <MockedProvider cache={cache} mocks={mocks}>
+          <App />
+        </MockedProvider>
+      );
+
+      return wait(() => {
+        expect(renderCount).toBe(4);
+      }).then(resolve, reject);
+    });
+
+    itAsync('should support explicit "merge"', (resolve, reject) => {
+      const mergeParams: [any, any][] = [];
+      const cache = new InMemoryCache({
+        typePolicies: {
+          Query: {
+            fields: {
+              primes: {
+                keyArgs: false,
+                merge(existing, incoming) {
+                  mergeParams.push([existing, incoming]);
+                  return existing ? [
+                    ...existing,
+                    ...incoming,
+                  ] : incoming;
+                },
+              },
+            },
+          },
+        },
+      });
+
+      let renderCount = 0;
+
+      function App() {
+        const {
+          loading,
+          networkStatus,
+          data,
+          error,
+          refetch,
+        } = useQuery(query, {
+          variables: { min: 0, max: 12 },
+          notifyOnNetworkStatusChange: true,
+          // This is the key line in this test.
+          refetchWritePolicy: "merge",
+        });
+
+        switch (++renderCount) {
+          case 1:
+            expect(loading).toBeTruthy();
+            expect(error).toBeUndefined();
+            expect(data).toBeUndefined();
+            expect(typeof refetch).toBe('function');
+            break;
+          case 2:
+            expect(loading).toBe(false);
+            expect(error).toBeUndefined();
+            expect(data).toEqual({
+              primes: [2, 3, 5, 7, 11],
+            });
+            expect(mergeParams).toEqual([
+              [void 0, [2, 3, 5, 7, 11]],
+            ]);
+            act(() => {
+              refetch({
+                min: 12,
+                max: 30,
+              }).then(result => {
+                expect(result).toEqual({
+                  loading: false,
+                  networkStatus: NetworkStatus.ready,
+                  data: {
+                    primes: [2, 3, 5, 7, 11, 13, 17, 19, 23, 29],
+                  },
+                });
+              });
+            });
+            break;
+          case 3:
+            expect(loading).toBe(true);
+            expect(error).toBeUndefined();
+            expect(data).toEqual({
+              // We get the stale data because we configured keyArgs: false.
+              primes: [2, 3, 5, 7, 11],
+            });
+            // This networkStatus is setVariables instead of refetch because
+            // we called refetch with new variables.
+            expect(networkStatus).toBe(NetworkStatus.setVariables);
+            break;
+          case 4:
+            expect(loading).toBe(false);
+            expect(error).toBeUndefined();
+            expect(data).toEqual({
+              // Thanks to refetchWritePolicy: "merge".
+              primes: [2, 3, 5, 7, 11, 13, 17, 19, 23, 29],
+            });
+            expect(mergeParams).toEqual([
+              [void 0, [2, 3, 5, 7, 11]],
+              // This indicates concatenation happened.
+              [[2, 3, 5, 7, 11], [13, 17, 19, 23, 29]],
+            ]);
+            break;
+          default:
+            reject("too many renders");
+        }
+
+        return null;
+      }
+
+      render(
+        <MockedProvider cache={cache} mocks={mocks}>
+          <App />
+        </MockedProvider>
+      );
+
+      return wait(() => {
+        expect(renderCount).toBe(4);
+      }).then(resolve, reject);
+    });
+
+    itAsync('should assume default refetchWritePolicy value is "overwrite"', (resolve, reject) => {
+      const mergeParams: [any, any][] = [];
+      const cache = new InMemoryCache({
+        typePolicies: {
+          Query: {
+            fields: {
+              primes: {
+                keyArgs: false,
+                merge(existing, incoming) {
+                  mergeParams.push([existing, incoming]);
+                  return existing ? [
+                    ...existing,
+                    ...incoming,
+                  ] : incoming;
+                },
+              },
+            },
+          },
+        },
+      });
+
+      let renderCount = 0;
+
+      function App() {
+        const {
+          loading,
+          networkStatus,
+          data,
+          error,
+          refetch,
+        } = useQuery(query, {
+          variables: { min: 0, max: 12 },
+          notifyOnNetworkStatusChange: true,
+          // Intentionally not passing refetchWritePolicy.
+        });
+
+        switch (++renderCount) {
+          case 1:
+            expect(loading).toBeTruthy();
+            expect(error).toBeUndefined();
+            expect(data).toBeUndefined();
+            expect(typeof refetch).toBe('function');
+            break;
+          case 2:
+            expect(loading).toBe(false);
+            expect(error).toBeUndefined();
+            expect(data).toEqual({
+              primes: [2, 3, 5, 7, 11],
+            });
+            expect(mergeParams).toEqual([
+              [void 0, [2, 3, 5, 7, 11]],
+            ]);
+            act(() => {
+              refetch({
+                min: 12,
+                max: 30,
+              }).then(result => {
+                expect(result).toEqual({
+                  loading: false,
+                  networkStatus: NetworkStatus.ready,
+                  data: {
+                    primes: [13, 17, 19, 23, 29],
+                  },
+                });
+              });
+            });
+            break;
+          case 3:
+            expect(loading).toBe(true);
+            expect(error).toBeUndefined();
+            expect(data).toEqual({
+              // We get the stale data because we configured keyArgs: false.
+              primes: [2, 3, 5, 7, 11],
+            });
+            // This networkStatus is setVariables instead of refetch because
+            // we called refetch with new variables.
+            expect(networkStatus).toBe(NetworkStatus.setVariables);
+            break;
+          case 4:
+            expect(loading).toBe(false);
+            expect(error).toBeUndefined();
+            expect(data).toEqual({
+              primes: [13, 17, 19, 23, 29],
+            });
+            expect(mergeParams).toEqual([
+              [void 0, [2, 3, 5, 7, 11]],
+              // Without refetchWritePolicy: "overwrite", this array will be
+              // all 10 primes (2 through 29) together.
+              [void 0, [13, 17, 19, 23, 29]],
+            ]);
+            break;
+          default:
+            reject("too many renders");
+        }
+
+        return null;
+      }
+
+      render(
+        <MockedProvider cache={cache} mocks={mocks}>
+          <App />
+        </MockedProvider>
+      );
+
+      return wait(() => {
+        expect(renderCount).toBe(4);
+      }).then(resolve, reject);
+    });
+  });
+
   describe('Partial refetching', () => {
-    itAsync(
+    withErrorSpy(itAsync,
       'should attempt a refetch when the query result was marked as being ' +
         'partial, the returned data was reset to an empty Object by the ' +
         'Apollo Client QueryManager (due to a cache miss), and the ' +
@@ -1948,13 +2530,15 @@ describe('useQuery Hook', () => {
       let renderCount = 0;
       const Component = () => {
         const [mutate, { loading: mutationLoading }] = useMutation(mutation, {
-          optimisticResponse: carData,
+          optimisticResponse: {
+            addCar: carData,
+          },
           update: (cache, { data }) => {
             cache.modify({
               fields: {
                 cars(existing, { readField }) {
                   const newCarRef = cache.writeFragment({
-                    data,
+                    data: data!.addCar,
                     fragment: gql`fragment NewCar on Car {
                       id
                       make
@@ -1962,7 +2546,7 @@ describe('useQuery Hook', () => {
                     }`,
                   });
                   if (existing.some(
-                    (ref: Reference) => readField('id', ref) === data!.id
+                    (ref: Reference) => readField('id', ref) === data!.addCar.id
                   )) {
                     return existing;
                   }
@@ -2283,6 +2867,83 @@ describe('useQuery Hook', () => {
     });
   });
 
+  describe('Missing Fields', () => {
+    itAsync(
+      'should have errors populated with missing field errors from the cache',
+      (resolve, reject) => {
+        const carQuery: DocumentNode = gql`
+          query cars($id: Int) {
+            cars(id: $id) {
+              id
+              make
+              model
+              vin
+              __typename
+            }
+          }
+        `;
+
+        const carData = {
+          cars: [
+            {
+              id: 1,
+              make: 'Audi',
+              model: 'RS8',
+              vine: 'DOLLADOLLABILL',
+              __typename: 'Car'
+            }
+          ]
+        };
+
+        const mocks = [
+          {
+            request: { query: carQuery, variables: { id: 1 } },
+            result: { data: carData }
+          },
+        ];
+
+        let renderCount = 0;
+        function App() {
+          const { loading, data, error } = useQuery(carQuery, {
+            variables: { id: 1 },
+          });
+
+          switch (renderCount) {
+            case 0:
+              expect(loading).toBeTruthy();
+              expect(data).toBeUndefined();
+              expect(error).toBeUndefined();
+              break;
+            case 1:
+              expect(loading).toBeFalsy();
+              expect(data).toBeUndefined();
+              expect(error).toBeDefined();
+              // TODO: ApolloError.name is Error for some reason
+              // expect(error!.name).toBe(ApolloError);
+              expect(error!.clientErrors.length).toEqual(1);
+              expect(error!.message).toMatch(/Can't find field 'vin' on Car:1/);
+              break;
+            default:
+              throw new Error("Unexpected render");
+          }
+
+          renderCount += 1;
+          return null;
+        }
+
+        render(
+          <MockedProvider mocks={mocks}>
+            <App />
+          </MockedProvider>
+        );
+
+        return wait(() => {
+          expect(renderCount).toBe(2);
+        }).then(resolve, reject);
+      },
+    );
+  });
+
   describe('Previous data', () => {
     itAsync('should persist previous data when a query is re-run', (resolve, reject) => {
       const query = gql`
@@ -2466,6 +3127,346 @@ describe('useQuery Hook', () => {
 
       return wait(() => {
         expect(renderCount).toBe(5);
+      }).then(resolve, reject);
+    });
+
+    itAsync("should be cleared when variables change causes cache miss", (resolve, reject) => {
+      const peopleData = [
+        { id: 1, name: 'John Smith', gender: 'male' },
+        { id: 2, name: 'Sara Smith', gender: 'female' },
+        { id: 3, name: 'Budd Deey', gender: 'nonbinary' },
+        { id: 4, name: 'Johnny Appleseed', gender: 'male' },
+        { id: 5, name: 'Ada Lovelace', gender: 'female' },
+      ];
+
+      const link = new ApolloLink(operation => {
+        return new Observable(observer => {
+          const { gender } = operation.variables;
+          new Promise(resolve => setTimeout(resolve, 300)).then(() => {
+            observer.next({
+              data: {
+                people: gender === "all" ? peopleData :
+                  gender ? peopleData.filter(
+                    person => person.gender === gender
+                  ) : peopleData,
+              }
+            });
+            observer.complete();
+          });
+        });
+      });
+
+      type Person = {
+        __typename: string;
+        id: string;
+        name: string;
+      };
+
+      const ALL_PEOPLE: TypedDocumentNode<{
+        people: Person[];
+      }> = gql`
+        query AllPeople($gender: String!) {
+          people(gender: $gender) {
+            id
+            name
+          }
+        }
+      `;
+
+      let renderCount = 0;
+      function App() {
+        const [gender, setGender] = useState("all");
+        const {
+          loading,
+          networkStatus,
+          data,
+        } = useQuery(ALL_PEOPLE, {
+          variables: { gender },
+          fetchPolicy: "network-only",
+        });
+
+        const currentPeopleNames = data?.people?.map(person => person.name);
+
+        switch (++renderCount) {
+          case 1:
+            expect(gender).toBe("all");
+            expect(loading).toBe(true);
+            expect(networkStatus).toBe(NetworkStatus.loading);
+            expect(data).toBeUndefined();
+            expect(currentPeopleNames).toBeUndefined();
+            break;
+
+          case 2:
+            expect(gender).toBe("all");
+            expect(loading).toBe(false);
+            expect(networkStatus).toBe(NetworkStatus.ready);
+            expect(data).toEqual({
+              people: peopleData.map(({ gender, ...person }) => person),
+            });
+            expect(currentPeopleNames).toEqual([
+              "John Smith",
+              "Sara Smith",
+              "Budd Deey",
+              "Johnny Appleseed",
+              "Ada Lovelace",
+            ]);
+            act(() => {
+              setGender("female");
+            });
+            break;
+
+          case 3:
+            expect(gender).toBe("female");
+            expect(loading).toBe(true);
+            expect(networkStatus).toBe(NetworkStatus.setVariables);
+            expect(data).toBeUndefined();
+            expect(currentPeopleNames).toBeUndefined();
+            break;
+
+          case 4:
+            expect(gender).toBe("female");
+            expect(loading).toBe(false);
+            expect(networkStatus).toBe(NetworkStatus.ready);
+            expect(data!.people.length).toBe(2);
+            expect(currentPeopleNames).toEqual([
+              "Sara Smith",
+              "Ada Lovelace",
+            ]);
+            act(() => {
+              setGender("nonbinary");
+            });
+            break;
+
+          case 5:
+            expect(gender).toBe("nonbinary");
+            expect(loading).toBe(true);
+            expect(networkStatus).toBe(NetworkStatus.setVariables);
+            expect(data).toBeUndefined();
+            expect(currentPeopleNames).toBeUndefined();
+            break;
+
+          case 6:
+            expect(gender).toBe("nonbinary");
+            expect(loading).toBe(false);
+            expect(networkStatus).toBe(NetworkStatus.ready);
+            expect(data!.people.length).toBe(1);
+            expect(currentPeopleNames).toEqual([
+              "Budd Deey",
+            ]);
+            act(() => {
+              setGender("male");
+            });
+            break;
+
+          case 7:
+            expect(gender).toBe("male");
+            expect(loading).toBe(true);
+            expect(networkStatus).toBe(NetworkStatus.setVariables);
+            expect(data).toBeUndefined();
+            expect(currentPeopleNames).toBeUndefined();
+            break;
+
+          case 8:
+            expect(gender).toBe("male");
+            expect(loading).toBe(false);
+            expect(networkStatus).toBe(NetworkStatus.ready);
+            expect(data!.people.length).toBe(2);
+            expect(currentPeopleNames).toEqual([
+              "John Smith",
+              "Johnny Appleseed",
+            ]);
+            act(() => {
+              setGender("female");
+            });
+            break;
+
+          case 9:
+            expect(gender).toBe("female");
+            expect(loading).toBe(true);
+            expect(networkStatus).toBe(NetworkStatus.setVariables);
+            expect(data!.people.length).toBe(2);
+            expect(currentPeopleNames).toEqual([
+              "Sara Smith",
+              "Ada Lovelace",
+            ]);
+            break;
+
+          case 10:
+            expect(gender).toBe("female");
+            expect(loading).toBe(false);
+            expect(networkStatus).toBe(NetworkStatus.ready);
+            expect(data!.people.length).toBe(2);
+            expect(currentPeopleNames).toEqual([
+              "Sara Smith",
+              "Ada Lovelace",
+            ]);
+            act(() => {
+              setGender("all");
+            });
+            break;
+
+          case 11:
+            expect(gender).toBe("all");
+            expect(loading).toBe(true);
+            expect(networkStatus).toBe(NetworkStatus.setVariables);
+            expect(data!.people.length).toBe(5);
+            expect(currentPeopleNames).toEqual([
+              "John Smith",
+              "Sara Smith",
+              "Budd Deey",
+              "Johnny Appleseed",
+              "Ada Lovelace",
+            ]);
+            break;
+
+          case 12:
+            expect(gender).toBe("all");
+            expect(loading).toBe(false);
+            expect(networkStatus).toBe(NetworkStatus.ready);
+            expect(data!.people.length).toBe(5);
+            expect(currentPeopleNames).toEqual([
+              "John Smith",
+              "Sara Smith",
+              "Budd Deey",
+              "Johnny Appleseed",
+              "Ada Lovelace",
+            ]);
+            break;
+
+          default:
+            reject(`too many (${renderCount}) renders`);
+        }
+
+        return null;
+      }
+
+      const client = new ApolloClient({
+        cache: new InMemoryCache(),
+        link
+      });
+
+      render(
+        <ApolloProvider client={client}>
+          <App />
+        </ApolloProvider>,
+      );
+
+      return wait(() => {
+        expect(renderCount).toBe(12);
+      }).then(resolve, reject);
+    });
+  });
+
+  describe("canonical cache results", () => {
+    itAsync("can be disabled via useQuery options", (resolve, reject) => {
+      const cache = new InMemoryCache({
+        typePolicies: {
+          Result: {
+            keyFields: false,
+          },
+        },
+      });
+
+      const query = gql`
+        query {
+          results {
+            value
+          }
+        }
+      `;
+
+      const results = [
+        { __typename: "Result", value: 0 },
+        { __typename: "Result", value: 1 },
+        { __typename: "Result", value: 1 },
+        { __typename: "Result", value: 2 },
+        { __typename: "Result", value: 3 },
+        { __typename: "Result", value: 5 },
+      ];
+
+      cache.writeQuery({
+        query,
+        data: { results },
+      })
+
+      let renderCount = 0;
+      function App() {
+        const [canonizeResults, setCanonize] = useState(false);
+        const { loading, data } = useQuery(query, {
+          fetchPolicy: "cache-only",
+          canonizeResults,
+        });
+
+        switch (++renderCount) {
+          case 1: {
+            expect(loading).toBe(false);
+            expect(data).toEqual({ results });
+            expect(data.results.length).toBe(6);
+            const resultSet = new Set(data.results as typeof results);
+            // Since canonization is not happening, the duplicate 1 results are
+            // returned as distinct objects.
+            expect(resultSet.size).toBe(6);
+            act(() => setCanonize(true));
+            break;
+          }
+
+          case 2: {
+            expect(loading).toBe(false);
+            expect(data).toEqual({ results });
+            expect(data.results.length).toBe(6);
+            const resultSet = new Set(data.results as typeof results);
+            // Since canonization is happening now, the duplicate 1 results are
+            // returned as identical (===) objects.
+            expect(resultSet.size).toBe(5);
+            const values: number[] = [];
+            resultSet.forEach(result => values.push(result.value));
+            expect(values).toEqual([0, 1, 2, 3, 5]);
+            act(() => {
+              results.push({
+                __typename: "Result",
+                value: 8,
+              });
+              // Append another element to the results array, invalidating the
+              // array itself, triggering another render (below).
+              cache.writeQuery({
+                query,
+                overwrite: true,
+                data: { results },
+              });
+            });
+            break;
+          }
+
+          case 3: {
+            expect(loading).toBe(false);
+            expect(data).toEqual({ results });
+            expect(data.results.length).toBe(7);
+            const resultSet = new Set(data.results as typeof results);
+            // Since canonization is happening now, the duplicate 1 results are
+            // returned as identical (===) objects.
+            expect(resultSet.size).toBe(6);
+            const values: number[] = [];
+            resultSet.forEach(result => values.push(result.value));
+            expect(values).toEqual([0, 1, 2, 3, 5, 8]);
+            break;
+          }
+
+          default: {
+            reject("too many renders");
+          }
+        }
+
+        return null;
+      }
+
+      render(
+        <MockedProvider cache={cache}>
+          <App/>
+        </MockedProvider>
+      );
+
+      return wait(() => {
+        expect(renderCount).toBe(3);
       }).then(resolve, reject);
     });
   });

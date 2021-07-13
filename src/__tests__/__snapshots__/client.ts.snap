@@ -41,3 +41,24 @@ Object {
   },
 }
 `;
+
+exports[`client should warn if server returns wrong data 1`] = `
+[MockFunction] {
+  "calls": Array [
+    Array [
+      "Missing field 'description' while writing result {
+  \\"id\\": \\"1\\",
+  \\"name\\": \\"Todo 1\\",
+  \\"price\\": 100,
+  \\"__typename\\": \\"Todo\\"
+}",
+    ],
+  ],
+  "results": Array [
+    Object {
+      "type": "return",
+      "value": undefined,
+    },
+  ],
+}
+`;

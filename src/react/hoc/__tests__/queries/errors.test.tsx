@@ -252,7 +252,7 @@ describe('[queries] errors', () => {
   });
 
   it('will not log a warning when there is an error that is not caught in the render method when using query', () =>
-    new Promise((resolve, reject) => {
+    new Promise<void>((resolve, reject) => {
       const query: DocumentNode = gql`
         query people {
           allPeople(first: 1) {

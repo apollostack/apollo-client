@@ -10,9 +10,12 @@ import {
   DeepMerger,
   resultKeyNameFromField,
   shouldInclude,
+  isNonNullObject,
 } from '../../utilities';
 
-export const hasOwn = Object.prototype.hasOwnProperty;
+export const {
+  hasOwnProperty: hasOwn,
+} = Object.prototype;
 
 export function getTypenameFromStoreObject(
   store: NormalizedCache,
@@ -35,7 +38,7 @@ export function selectionSetMatchesResult(
   result: Record<string, any>,
   variables?: Record<string, any>,
 ): boolean {
-  if (result && typeof result === "object") {
+  if (isNonNullObject(result)) {
     return Array.isArray(result)
       ? result.every(item => selectionSetMatchesResult(selectionSet, item, variables))
       : selectionSet.selections.every(field => {
@@ -59,8 +62,7 @@ export function selectionSetMatchesResult(
 export function storeValueIsStoreObject(
   value: StoreValue,
 ): value is StoreObject {
-  return value !== null &&
-    typeof value === "object" &&
+  return isNonNullObject(value) &&
     !isReference(value) &&
     !Array.isArray(value);
 }

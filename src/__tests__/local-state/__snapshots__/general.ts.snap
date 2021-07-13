@@ -3,3 +3,41 @@
 exports[`Combining client and server state/operations should correctly propagate an error from a client resolver 1`] = `"Illegal Query Operation Occurred"`;
 
 exports[`Combining client and server state/operations should correctly propagate an error from a client resolver 2`] = `"Illegal Mutation Operation Occurred"`;
+
+exports[`Combining client and server state/operations should handle a simple query with both server and client fields 1`] = `
+[MockFunction] {
+  "calls": Array [
+    Array [
+      "Missing field 'lastCount' while writing result {
+  \\"count\\": 0
+}",
+    ],
+  ],
+  "results": Array [
+    Object {
+      "type": "return",
+      "value": undefined,
+    },
+  ],
+}
+`;
+
+exports[`Combining client and server state/operations should support nested querying of both server and client fields 1`] = `
+[MockFunction] {
+  "calls": Array [
+    Array [
+      "Missing field 'lastName' while writing result {
+  \\"__typename\\": \\"User\\",
+  \\"id\\": 123,
+  \\"firstName\\": \\"John\\"
+}",
+    ],
+  ],
+  "results": Array [
+    Object {
+      "type": "return",
+      "value": undefined,
+    },
+  ],
+}
+`;

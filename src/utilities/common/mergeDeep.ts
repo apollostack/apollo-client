@@ -1,3 +1,5 @@
+import { isNonNullObject } from "./objects";
+
 const { hasOwnProperty } = Object.prototype;
 
 // These mergeDeep and mergeDeepArray utilities merge any number of objects
@@ -46,10 +48,6 @@ export function mergeDeepArray<T>(sources: T[]): T {
   return target;
 }
 
-function isObject(obj: any): obj is Record<string | number, any> {
-  return obj !== null && typeof obj === 'object';
-}
-
 export type ReconcilerFunction<TContextArgs extends any[]> = (
   this: DeepMerger<TContextArgs>,
   target: Record<string | number, any>,
@@ -69,7 +67,7 @@ export class DeepMerger<TContextArgs extends any[]> {
   ) {}
 
   public merge(target: any, source: any, ...context: TContextArgs): any {
-    if (isObject(source) && isObject(target)) {
+    if (isNonNullObject(source) && isNonNullObject(target)) {
       Object.keys(source).forEach(sourceKey => {
         if (hasOwnProperty.call(target, sourceKey)) {
           const targetValue = target[sourceKey];
@@ -97,12 +95,12 @@ export class DeepMerger<TContextArgs extends any[]> {
     return source;
   }
 
-  public isObject = isObject;
+  public isObject = isNonNullObject;
 
   private pastCopies = new Set<any>();
 
   public shallowCopyForMerge<T>(value: T): T {
-    if (isObject(value) && !this.pastCopies.has(value)) {
+    if (isNonNullObject(value) && !this.pastCopies.has(value)) {
       if (Array.isArray(value)) {
         value = (value as any).slice(0);
       } else {

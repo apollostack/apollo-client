@@ -258,7 +258,7 @@ describe('[queries] api', () => {
     };
 
     type Data = typeof data1;
-    type Variables = typeof vars1;
+    type Variables = { cursor: number | undefined };
 
     const link = mockSingleLink(
       { request: { query, variables: vars1 }, result: { data: data1 } },

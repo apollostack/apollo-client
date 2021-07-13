@@ -1,8 +1,9 @@
-import React from 'react';
+import * as React from 'react';
 import { DocumentNode } from 'graphql';
 import hoistNonReactStatics from 'hoist-non-react-statics';
 
 import { parser } from '../parser';
+import { DefaultContext } from '../../core/types';
 import {
   BaseMutationOptions,
   MutationFunction,
@@ -17,12 +18,15 @@ import {
   GraphQLBase
 } from './hoc-utils';
 import { OperationOption, OptionProps, MutateProps } from './types';
+import { ApolloCache } from '../../core';
 
 export function withMutation<
   TProps extends TGraphQLVariables | {} = {},
-  TData = {},
+  TData extends Record<string, any> = {},
   TGraphQLVariables = {},
-  TChildProps = MutateProps<TData, TGraphQLVariables>
+  TChildProps = MutateProps<TData, TGraphQLVariables>,
+  TContext = DefaultContext,
+  TCache extends ApolloCache<any> = ApolloCache<any>,
 >(
   document: DocumentNode,
   operationOptions: OperationOption<
@@ -41,9 +45,9 @@ export function withMutation<
     alias = 'Apollo'
   } = operationOptions;
 
-  let mapPropsToOptions = options as (props: any) => BaseMutationOptions;
+  let mapPropsToOptions = options as (props: any) => BaseMutationOptions<TData, TGraphQLVariables, TContext, TCache>;
   if (typeof mapPropsToOptions !== 'function')
-    mapPropsToOptions = () => options as BaseMutationOptions;
+    mapPropsToOptions = () => options as BaseMutationOptions<TData, TGraphQLVariables, TContext, TCache>;
 
   return (
     WrappedComponent: React.ComponentType<TProps & TChildProps>
@@ -54,7 +58,7 @@ export function withMutation<
       static WrappedComponent = WrappedComponent;
       render() {
         let props = this.props as TProps;
-        const opts = mapPropsToOptions(props);
+        const opts = mapPropsToOptions(props) as BaseMutationOptions<TData, TGraphQLVariables, TContext, TCache>;
 
         if (operationOptions.withRef) {
           this.withRef = true;
@@ -63,7 +67,7 @@ export function withMutation<
           });
         }
         if (!opts.variables && operation.variables.length > 0) {
-          opts.variables = calculateVariablesFromProps(operation, props);
+          opts.variables = calculateVariablesFromProps(operation, props) as TGraphQLVariables;
         }
 
         return (

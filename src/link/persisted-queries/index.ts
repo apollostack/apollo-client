@@ -186,6 +186,12 @@ export const createPersistedQueryLink = (
                 includeQuery: true,
                 includeExtensions: supportsPersistedQueries,
               },
+              fetchOptions: {
+                // Since we're including the full query, which may be
+                // large, we should send it in the body of a POST request.
+                // See issue #7456.
+                method: 'POST',
+              },
             });
             if (setFetchOptions) {
               operation.setContext({ fetchOptions: originalFetchOptions });

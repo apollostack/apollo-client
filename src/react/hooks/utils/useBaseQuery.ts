@@ -34,8 +34,8 @@ export function useBaseQuery<TData = any, TVariables = OperationVariables>(
           // force that re-render if we're already rendering however so to be
           // safe we'll trigger the re-render in a microtask. In case the
           // component gets unmounted before this callback fires, we re-check
-          // queryDataRef.current before calling forceUpdate().
-          Promise.resolve().then(() => queryDataRef.current && forceUpdate());
+          // queryDataRef.current.isMounted before calling forceUpdate().
+          Promise.resolve().then(() => queryDataRef.current && queryDataRef.current.isMounted && forceUpdate());
         } else {
           // If we're rendering on the server side we can force an update at
           // any point.

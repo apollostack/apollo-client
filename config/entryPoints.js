@@ -22,7 +22,10 @@ const entryPoints = [
   { dirs: ['react', 'hooks'] },
   { dirs: ['react', 'parser'] },
   { dirs: ['react', 'ssr'] },
-  { dirs: ['utilities'] },
+  { dirs: ['utilities'],
+    sideEffects: [
+      "./globals/**"
+    ]},
   { dirs: ['testing'], extensions: [".js", ".jsx"] },
 ];
 

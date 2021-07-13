@@ -447,7 +447,7 @@ describe('Basic resolver capabilities', () => {
     });
 
     function check(result: ApolloQueryResult<any>) {
-      return new Promise(resolve => {
+      return new Promise<void>(resolve => {
         expect(result.data.developer.id).toBe(developerId);
         expect(result.data.developer.handle).toBe('@benjamn');
         expect(result.data.developer.tickets.length).toBe(ticketsPerDev);

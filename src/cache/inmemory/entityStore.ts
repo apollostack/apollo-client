@@ -1,5 +1,7 @@
-import { dep, OptimisticDependencyFunction, KeyTrie } from 'optimism';
+import { dep, OptimisticDependencyFunction } from 'optimism';
+import { invariant } from 'ts-invariant';
 import { equal } from '@wry/equality';
+import { Trie } from '@wry/trie';
 
 import {
   isReference,
@@ -10,6 +12,7 @@ import {
   DeepMerger,
   maybeDeepFreeze,
   canUseWeakMap,
+  isNonNullObject,
 } from '../../utilities';
 import { NormalizedCache, NormalizedCacheObject } from './types';
 import { hasOwn, fieldNameFromStoreName } from './helpers';
@@ -93,13 +96,38 @@ export abstract class EntityStore implements NormalizedCache {
     }
   }
 
-  public merge(dataId: string, incoming: StoreObject): void {
-    const existing = this.lookup(dataId);
+  public merge(
+    older: string | StoreObject,
+    newer: StoreObject | string,
+  ): void {
+    let dataId: string | undefined;
+
+    const existing: StoreObject | undefined =
+      typeof older === "string"
+        ? this.lookup(dataId = older)
+        : older;
+
+    const incoming: StoreObject | undefined =
+      typeof newer === "string"
+        ? this.lookup(dataId = newer)
+        : newer;
+
+    // If newer was a string ID, but that ID was not defined in this store,
+    // then there are no fields to be merged, so we're done.
+    if (!incoming) return;
+
+    invariant(
+      typeof dataId === "string",
+      "store.merge expects a string ID",
+    );
+
     const merged: StoreObject =
       new DeepMerger(storeObjectReconciler).merge(existing, incoming);
+
     // Even if merged === existing, existing may have come from a lower
     // layer, so we always need to set this.data[dataId] on this level.
     this.data[dataId] = merged;
+
     if (merged !== existing) {
       delete this.refs[dataId];
       if (this.group.caching) {
@@ -140,8 +168,18 @@ export abstract class EntityStore implements NormalizedCache {
           }
         });
 
+        if (fieldsToDirty.__typename &&
+            !(existing && existing.__typename) &&
+            // Since we return default root __typename strings
+            // automatically from store.get, we don't need to dirty the
+            // ROOT_QUERY.__typename field if merged.__typename is equal
+            // to the default string (usually "Query").
+            this.policies.rootTypenamesById[dataId] === merged.__typename) {
+          delete fieldsToDirty.__typename;
+        }
+
         Object.keys(fieldsToDirty).forEach(
-          fieldName => this.group.dirty(dataId, fieldName));
+          fieldName => this.group.dirty(dataId as string, fieldName));
       }
     }
   }
@@ -382,15 +420,14 @@ export abstract class EntityStore implements NormalizedCache {
       const workSet = new Set([this.data[dataId]]);
       // Within the store, only arrays and objects can contain child entity
       // references, so we can prune the traversal using this predicate:
-      const canTraverse = (obj: any) => obj !== null && typeof obj === 'object';
       workSet.forEach(obj => {
         if (isReference(obj)) {
           found[obj.__ref] = true;
-        } else if (canTraverse(obj)) {
+        } else if (isNonNullObject(obj)) {
           Object.values(obj!)
             // No need to add primitive values to the workSet, since they cannot
             // contain reference objects.
-            .filter(canTraverse)
+            .filter(isNonNullObject)
             .forEach(workSet.add, workSet);
         }
       });
@@ -399,8 +436,9 @@ export abstract class EntityStore implements NormalizedCache {
   }
 
   // Used to compute cache keys specific to this.group.
-  public makeCacheKey(...args: any[]) {
-    return this.group.keyMaker.lookupArray(args);
+  public makeCacheKey(...args: any[]): object;
+  public makeCacheKey() {
+    return this.group.keyMaker.lookupArray(arguments);
   }
 
   // Bound function that can be passed around to provide easy access to fields
@@ -469,8 +507,20 @@ export type FieldValueGetter = EntityStore["getFieldValue"];
 class CacheGroup {
   private d: OptimisticDependencyFunction<string> | null = null;
 
-  constructor(public readonly caching: boolean) {
-    this.d = caching ? dep<string>() : null;
+  // Used by the EntityStore#makeCacheKey method to compute cache keys
+  // specific to this CacheGroup.
+  public keyMaker: Trie<object>;
+
+  constructor(
+    public readonly caching: boolean,
+    private parent: CacheGroup | null = null,
+  ) {
+    this.resetCaching();
+  }
+
+  public resetCaching() {
+    this.d = this.caching ? dep<string>() : null;
+    this.keyMaker = new Trie(canUseWeakMap);
   }
 
   public depend(dataId: string, storeFieldName: string) {
@@ -485,18 +535,27 @@ class CacheGroup {
         // level of specificity.
         this.d(makeDepKey(dataId, fieldName));
       }
+      if (this.parent) {
+        this.parent.depend(dataId, storeFieldName);
+      }
     }
   }
 
   public dirty(dataId: string, storeFieldName: string) {
     if (this.d) {
-      this.d.dirty(makeDepKey(dataId, storeFieldName));
+      this.d.dirty(
+        makeDepKey(dataId, storeFieldName),
+        // When storeFieldName === "__exists", that means the entity identified
+        // by dataId has either disappeared from the cache or was newly added,
+        // so the result caching system would do well to "forget everything it
+        // knows" about that object. To achieve that kind of invalidation, we
+        // not only dirty the associated result cache entry, but also remove it
+        // completely from the dependency graph. For the optimism implmentation
+        // details, see https://github.com/benjamn/optimism/pull/195.
+        storeFieldName === "__exists" ? "forget" : "setDirty",
+      );
     }
   }
-
-  // Used by the EntityStore#makeCacheKey method to compute cache keys
-  // specific to this CacheGroup.
-  public readonly keyMaker = new KeyTrie<object>(canUseWeakMap);
 }
 
 function makeDepKey(dataId: string, storeFieldName: string) {
@@ -506,16 +565,26 @@ function makeDepKey(dataId: string, storeFieldName: string) {
   return storeFieldName + '#' + dataId;
 }
 
+export function maybeDependOnExistenceOfEntity(
+  store: NormalizedCache,
+  entityId: string,
+) {
+  if (supportsResultCaching(store)) {
+    // We use this pseudo-field __exists elsewhere in the EntityStore code to
+    // represent changes in the existence of the entity object identified by
+    // entityId. This dependency gets reliably dirtied whenever an object with
+    // this ID is deleted (or newly created) within this group, so any result
+    // cache entries (for example, StoreReader#executeSelectionSet results) that
+    // depend on __exists for this entityId will get dirtied as well, leading to
+    // the eventual recomputation (instead of reuse) of those result objects the
+    // next time someone reads them from the cache.
+    store.group.depend(entityId, "__exists");
+  }
+}
+
 export namespace EntityStore {
   // Refer to this class as EntityStore.Root outside this namespace.
   export class Root extends EntityStore {
-    // Although each Root instance gets its own unique CacheGroup object,
-    // any Layer instances created by calling addLayer need to share a
-    // single distinct CacheGroup object. Since this shared object must
-    // outlast the Layer instances themselves, it needs to be created and
-    // owned by the Root instance.
-    private sharedLayerGroup: CacheGroup;
-
     constructor({
       policies,
       resultCaching = true,
@@ -526,16 +595,19 @@ export namespace EntityStore {
       seed?: NormalizedCacheObject;
     }) {
       super(policies, new CacheGroup(resultCaching));
-      this.sharedLayerGroup = new CacheGroup(resultCaching);
       if (seed) this.replace(seed);
     }
+
+    public readonly stump = new Stump(this);
 
     public addLayer(
       layerId: string,
       replay: (layer: EntityStore) => any,
     ): Layer {
-      // The replay function will be called in the Layer constructor.
-      return new Layer(layerId, this, replay, this.sharedLayerGroup);
+      // Adding an optimistic Layer on top of the Root actually adds the Layer
+      // on top of the Stump, so the Stump always comes between the Root and
+      // any Layer objects that we've added.
+      return this.stump.addLayer(layerId, replay);
     }
 
     public removeLayer(): Root {
@@ -543,7 +615,7 @@ export namespace EntityStore {
       return this;
     }
 
-    public readonly storageTrie = new KeyTrie<StorageType>(canUseWeakMap);
+    public readonly storageTrie = new Trie<StorageType>(canUseWeakMap);
     public getStorage(): StorageType {
       return this.storageTrie.lookupArray(arguments);
     }
@@ -575,18 +647,44 @@ class Layer extends EntityStore {
     const parent = this.parent.removeLayer(layerId);
 
     if (layerId === this.id) {
-      // Dirty every ID we're removing.
       if (this.group.caching) {
+        // Dirty every ID we're removing. Technically we might be able to avoid
+        // dirtying fields that have values in higher layers, but we don't have
+        // easy access to higher layers here, and we're about to recreate those
+        // layers anyway (see parent.addLayer below).
         Object.keys(this.data).forEach(dataId => {
-          // If this.data[dataId] contains nothing different from what
-          // lies beneath, we can avoid dirtying this dataId and all of
-          // its fields, and simply discard this Layer. The only reason we
-          // call this.delete here is to dirty the removed fields.
-          if (this.data[dataId] !== (parent as Layer).lookup(dataId)) {
+          const ownStoreObject = this.data[dataId];
+          const parentStoreObject = parent["lookup"](dataId);
+          if (!parentStoreObject) {
+            // The StoreObject identified by dataId was defined in this layer
+            // but will be undefined in the parent layer, so we can delete the
+            // whole entity using this.delete(dataId). Since we're about to
+            // throw this layer away, the only goal of this deletion is to dirty
+            // the removed fields.
             this.delete(dataId);
+          } else if (!ownStoreObject) {
+            // This layer had an entry for dataId but it was undefined, which
+            // means the entity was deleted in this layer, and it's about to
+            // become undeleted when we remove this layer, so we need to dirty
+            // all fields that are about to be reexposed.
+            this.group.dirty(dataId, "__exists");
+            Object.keys(parentStoreObject).forEach(storeFieldName => {
+              this.group.dirty(dataId, storeFieldName);
+            });
+          } else if (ownStoreObject !== parentStoreObject) {
+            // If ownStoreObject is not exactly the same as parentStoreObject,
+            // dirty any fields whose values will change as a result of this
+            // removal.
+            Object.keys(ownStoreObject).forEach(storeFieldName => {
+              if (!equal(ownStoreObject[storeFieldName],
+                         parentStoreObject[storeFieldName])) {
+                this.group.dirty(dataId, storeFieldName);
+              }
+            });
           }
         });
       }
+
       return parent;
     }
 
@@ -616,6 +714,35 @@ class Layer extends EntityStore {
     let p: EntityStore = this.parent;
     while ((p as Layer).parent) p = (p as Layer).parent;
     return p.getStorage.apply(p, arguments);
+  }
+}
+
+// Represents a Layer permanently installed just above the Root, which allows
+// reading optimistically (and registering optimistic dependencies) even when
+// no optimistic layers are currently active. The stump.group CacheGroup object
+// is shared by any/all Layer objects added on top of the Stump.
+class Stump extends Layer {
+  constructor(root: EntityStore.Root) {
+    super(
+      "EntityStore.Stump",
+      root,
+      () => {},
+      new CacheGroup(root.group.caching, root.group),
+    );
+  }
+
+  public removeLayer() {
+    // Never remove the Stump layer.
+    return this;
+  }
+
+  public merge() {
+    // We never want to write any data into the Stump, so we forward any merge
+    // calls to the Root instead. Another option here would be to throw an
+    // exception, but the toReference(object, true) function can sometimes
+    // trigger Stump writes (which used to be Root writes, before the Stump
+    // concept was introduced).
+    return this.parent.merge.apply(this.parent, arguments);
   }
 }
 

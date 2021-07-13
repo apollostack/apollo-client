@@ -2,7 +2,7 @@ import gql from 'graphql-tag';
 import { print } from 'graphql';
 
 import { Observable } from '../../utilities';
-import { itAsync } from '../../testing';
+import { itAsync, withErrorSpy } from '../../testing';
 import { ApolloLink } from '../../link/core';
 import { ApolloClient } from '../../core';
 import { InMemoryCache } from '../../cache';
@@ -179,7 +179,7 @@ describe('@client @export tests', () => {
     },
   );
 
-  it('should allow @client @export variables to be used with remote queries', done => {
+  withErrorSpy(it, 'should allow @client @export variables to be used with remote queries', done => {
     const query = gql`
       query currentAuthorPostCount($authorId: Int!) {
         currentAuthor @client {
@@ -714,7 +714,7 @@ describe('@client @export tests', () => {
     },
   );
 
-  it(
+  withErrorSpy(it,
     'should refetch if an @export variable changes, the current fetch ' +
     'policy is not cache-only, and the query includes fields that need to ' +
     'be resolved remotely',
@@ -779,7 +779,7 @@ describe('@client @export tests', () => {
     }
   );
 
-  it(
+  withErrorSpy(it,
     'should NOT refetch if an @export variable has not changed, the ' +
     'current fetch policy is not cache-only, and the query includes fields ' +
     'that need to be resolved remotely',

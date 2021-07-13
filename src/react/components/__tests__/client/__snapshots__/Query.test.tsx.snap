@@ -1,5 +1,21 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
+exports[`Query component Partial refetching should attempt a refetch when the query result was marked as being partial, the returned data was reset to an empty Object by the Apollo Client QueryManager (due to a cache miss), and the \`partialRefetch\` prop is \`true\` 1`] = `
+[MockFunction] {
+  "calls": Array [
+    Array [
+      "Missing field 'allPeople' while writing result {}",
+    ],
+  ],
+  "results": Array [
+    Object {
+      "type": "return",
+      "value": undefined,
+    },
+  ],
+}
+`;
+
 exports[`Query component calls the children prop: result in render prop 1`] = `
 Object {
   "called": true,

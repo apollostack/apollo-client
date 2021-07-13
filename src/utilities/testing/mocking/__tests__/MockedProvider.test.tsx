@@ -157,7 +157,8 @@ describe('General use', () => {
     }
 
     const variables2 = {
-      username: 'other_user'
+      username: 'other_user',
+      age: undefined
     };
 
     render(

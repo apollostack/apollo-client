@@ -12,8 +12,13 @@ import { ObservableQuery } from './ObservableQuery';
 
 import {
   ApolloQueryResult,
+  DefaultContext,
   OperationVariables,
   Resolvers,
+  RefetchQueriesOptions,
+  RefetchQueriesResult,
+  InternalRefetchQueriesResult,
+  RefetchQueriesInclude,
 } from './types';
 
 import {
@@ -32,7 +37,7 @@ import {
 export interface DefaultOptions {
   watchQuery?: Partial<WatchQueryOptions<any, any>>;
   query?: Partial<QueryOptions<any, any>>;
-  mutate?: Partial<MutationOptions<any, any>>;
+  mutate?: Partial<MutationOptions<any, any, any>>;
 }
 
 let hasSuggestedDevtools = false;
@@ -56,13 +61,13 @@ export type ApolloClientOptions<TCacheShape> = {
   version?: string;
 };
 
-type OptionsUnion<TData, TVariables> =
+type OptionsUnion<TData, TVariables, TContext> =
   | WatchQueryOptions<TVariables, TData>
   | QueryOptions<TVariables, TData>
-  | MutationOptions<TData, TVariables>;
+  | MutationOptions<TData, TVariables, TContext>;
 
 export function mergeOptions<
-  TOptions extends OptionsUnion<any, any>
+  TOptions extends OptionsUnion<any, any, any>
 >(
   defaults: Partial<TOptions>,
   options: TOptions,
@@ -146,7 +151,7 @@ export class ApolloClient<TCacheShape> implements DataProxy {
         // devtools, but disable them by default in production.
         typeof window === 'object' &&
         !(window as any).__APOLLO_CLIENT__ &&
-        process.env.NODE_ENV !== 'production',
+        __DEV__,
       queryDeduplication = true,
       defaultOptions,
       assumeImmutableResults = false,
@@ -200,7 +205,7 @@ export class ApolloClient<TCacheShape> implements DataProxy {
     /**
      * Suggest installing the devtools for developers who don't have them
      */
-    if (!hasSuggestedDevtools && process.env.NODE_ENV !== 'production') {
+    if (!hasSuggestedDevtools && __DEV__) {
       hasSuggestedDevtools = true;
       if (
         typeof window !== 'undefined' &&
@@ -347,13 +352,18 @@ export class ApolloClient<TCacheShape> implements DataProxy {
    *
    * It takes options as an object with the following keys and values:
    */
-  public mutate<T = any, TVariables = OperationVariables>(
-    options: MutationOptions<T, TVariables>,
-  ): Promise<FetchResult<T>> {
+  public mutate<
+    TData = any,
+    TVariables = OperationVariables,
+    TContext = DefaultContext,
+    TCache extends ApolloCache<any> = ApolloCache<any>
+  >(
+    options: MutationOptions<TData, TVariables, TContext>,
+  ): Promise<FetchResult<TData>> {
     if (this.defaultOptions.mutate) {
       options = mergeOptions(this.defaultOptions.mutate, options);
     }
-    return this.queryManager.mutate<T>(options);
+    return this.queryManager.mutate<TData, TVariables, TContext, TCache>(options);
   }
 
   /**
@@ -514,6 +524,59 @@ export class ApolloClient<TCacheShape> implements DataProxy {
     includeStandby?: boolean,
   ): Promise<ApolloQueryResult<any>[]> {
     return this.queryManager.reFetchObservableQueries(includeStandby);
+  }
+
+  /**
+   * Refetches specified active queries. Similar to "reFetchObservableQueries()" but with a specific list of queries.
+   *
+   * `refetchQueries()` is useful for use cases to imperatively refresh a selection of queries.
+   *
+   * It is important to remember that `refetchQueries()` *will* refetch specified active
+   * queries. This means that any components that might be mounted will execute
+   * their queries again using your network interface. If you do not want to
+   * re-execute any queries then you should make sure to stop watching any
+   * active queries.
+   * Takes optional parameter `includeStandby` which will include queries in standby-mode when refetching.
+   */
+  public refetchQueries<
+    TCache extends ApolloCache<any> = ApolloCache<TCacheShape>,
+    TResult = Promise<ApolloQueryResult<any>>,
+  >(
+    options: RefetchQueriesOptions<TCache, TResult>,
+  ): RefetchQueriesResult<TResult> {
+    const map = this.queryManager.refetchQueries(options);
+    const queries: ObservableQuery<any>[] = [];
+    const results: InternalRefetchQueriesResult<TResult>[] = [];
+
+    map.forEach((result, obsQuery) => {
+      queries.push(obsQuery);
+      results.push(result);
+    });
+
+    const result = Promise.all<TResult>(
+      results as TResult[]
+    ) as RefetchQueriesResult<TResult>;
+
+    // In case you need the raw results immediately, without awaiting
+    // Promise.all(results):
+    result.queries = queries;
+    result.results = results;
+
+    return result;
+  }
+
+  /**
+   * Get all currently active `ObservableQuery` objects, in a `Map` keyed by
+   * query ID strings. An "active" query is one that has observers and a
+   * `fetchPolicy` other than "standby" or "cache-only". You can include all
+   * `ObservableQuery` objects (including the inactive ones) by passing "all"
+   * instead of "active", or you can include just a subset of active queries by
+   * passing an array of query names or DocumentNode objects.
+   */
+  public getObservableQueries(
+    include: RefetchQueriesInclude = "active",
+  ): Map<string, ObservableQuery<any>> {
+    return this.queryManager.getObservableQueries(include);
   }
 
   /**

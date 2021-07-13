@@ -7,6 +7,7 @@ import { ApolloCache } from '../../core/cache';
 import { Cache } from '../../core/types/Cache';
 import { Reference, makeReference, isReference } from '../../../utilities/graphql/storeUtils';
 import { MissingFieldError } from '../..';
+import { TypedDocumentNode } from '@graphql-typed-document-node/core';
 
 describe('EntityStore', () => {
   it('should support result caching if so configured', () => {
@@ -34,12 +35,12 @@ describe('EntityStore', () => {
       anotherLayer
         .removeLayer("with caching")
         .removeLayer("another layer")
-    ).toBe(storeWithResultCaching);
+    ).toBe(storeWithResultCaching.stump);
     expect(supportsResultCaching(storeWithResultCaching)).toBe(true);
 
     const layerWithoutCaching = storeWithoutResultCaching.addLayer("with caching", () => {});
     expect(supportsResultCaching(layerWithoutCaching)).toBe(false);
-    expect(layerWithoutCaching.removeLayer("with caching")).toBe(storeWithoutResultCaching);
+    expect(layerWithoutCaching.removeLayer("with caching")).toBe(storeWithoutResultCaching.stump);
     expect(supportsResultCaching(storeWithoutResultCaching)).toBe(false);
   });
 
@@ -56,7 +57,17 @@ describe('EntityStore', () => {
       },
     });
 
-    const query = gql`
+    const query: TypedDocumentNode<{
+      book: {
+        __typename: string;
+        title: string;
+        isbn: string;
+        author: {
+          __typename: string;
+          name: string;
+        };
+      };
+    }> = gql`
       query {
         book {
           title
@@ -159,10 +170,15 @@ describe('EntityStore', () => {
       },
     });
 
+    const resultBeforeGC = cache.readQuery({ query });
+
     expect(cache.gc().sort()).toEqual([
       'Author:Ray Bradbury',
       'Book:9781451673319',
     ]);
+
+    const resultAfterGC = cache.readQuery({ query });
+    expect(resultBeforeGC).toBe(resultAfterGC);
 
     expect(cache.extract()).toEqual({
       ROOT_QUERY: {
@@ -184,8 +200,32 @@ describe('EntityStore', () => {
       },
     });
 
-    // Nothing left to garbage collect.
-    expect(cache.gc()).toEqual([]);
+    // Nothing left to collect, but let's also reset the result cache to
+    // demonstrate that the recomputed cache results are unchanged.
+    const originalReader = cache["storeReader"];
+    expect(cache.gc({
+      resetResultCache: true,
+    })).toEqual([]);
+    expect(cache["storeReader"]).not.toBe(originalReader);
+    const resultAfterResetResultCache = cache.readQuery({ query });
+    expect(resultAfterResetResultCache).toBe(resultBeforeGC);
+    expect(resultAfterResetResultCache).toBe(resultAfterGC);
+
+    // Now discard cache.storeReader.canon as well.
+    expect(cache.gc({
+      resetResultCache: true,
+      resetResultIdentities: true,
+    })).toEqual([]);
+
+    const resultAfterFullGC = cache.readQuery({ query });
+    expect(resultAfterFullGC).toEqual(resultBeforeGC);
+    expect(resultAfterFullGC).toEqual(resultAfterGC);
+    // These !== relations are triggered by passing resetResultIdentities:true
+    // to cache.gc, above.
+    expect(resultAfterFullGC).not.toBe(resultBeforeGC);
+    expect(resultAfterFullGC).not.toBe(resultAfterGC);
+    // Result caching immediately begins working again after the intial reset.
+    expect(cache.readQuery({ query })).toBe(resultAfterFullGC);
 
     // Go back to the pre-GC snapshot.
     cache.restore(snapshot);
@@ -307,6 +347,7 @@ describe('EntityStore', () => {
             {
               __typename: 'Book',
               isbn: '9781451673319',
+              title: 'Fahrenheit 451',
             },
           ],
         },
@@ -535,6 +576,7 @@ describe('EntityStore', () => {
             {
               __typename: 'Book',
               isbn: '0735211280',
+              title: "Spineless",
             },
           ],
         },
@@ -1213,14 +1255,12 @@ describe('EntityStore', () => {
           'Can\'t find field \'hobby\' on Author:{"name":"Ted Chiang"} object',
           ["authorOfBook", "hobby"],
           expect.anything(), // query
-          false, // clientOnly
           expect.anything(), // variables
         ),
         new MissingFieldError(
           'Can\'t find field \'publisherOfBook\' on ROOT_QUERY object',
           ["publisherOfBook"],
           expect.anything(), // query
-          false, // clientOnly
           expect.anything(), // variables
         ),
       ],
@@ -1561,7 +1601,7 @@ describe('EntityStore', () => {
     expect(cache.identify(todoRef!)).toBe("Todo:123");
 
     const taskRef = cache.writeFragment({
-      fragment: gql`fragment TaskId on Task { id }`,
+      fragment: gql`fragment TaskId on Task { uuid }`,
       data: {
         __typename: "Task",
         uuid: "eb8cffcc-7a9e-4d8b-a517-7d987bf42138",
@@ -1814,7 +1854,6 @@ describe('EntityStore', () => {
         "Dangling reference to missing Author:2 object",
         ["book", "author"],
         expect.anything(), // query
-        false, // clientOnly
         expect.anything(), // variables
       ),
     ];
@@ -2084,7 +2123,6 @@ describe('EntityStore', () => {
           'Can\'t find field \'title\' on Book:{"isbn":"031648637X"} object',
           ["book", "title"],
           expect.anything(), // query
-          false, // clientOnly
           expect.anything(), // variables
         ),
       ],
@@ -2413,6 +2451,10 @@ describe('EntityStore', () => {
       variables: {
         isbn: "1982103558",
       },
+      // TODO It's a regrettable accident of history that cache.readQuery is
+      // non-optimistic by default. Perhaps the default can be swapped to true
+      // in the next major version of Apollo Client.
+      optimistic: true,
     });
 
     expect(theEndResult).toEqual(theEndData);
@@ -2427,6 +2469,7 @@ describe('EntityStore', () => {
       variables: {
         isbn: "1449373321",
       },
+      optimistic: true,
     })).toBe(diffs[0].result);
 
     expect(cache.readQuery({
@@ -2434,6 +2477,7 @@ describe('EntityStore', () => {
       variables: {
         isbn: "1982103558",
       },
+      optimistic: true,
     })).toBe(theEndResult);
 
     // Still no additional reads, because both books are cached.
@@ -2461,6 +2505,22 @@ describe('EntityStore', () => {
     expect(isbnsWeHaveRead).toEqual([
       "1449373321",
       "1982103558",
+    ]);
+
+    expect(cache.readQuery({
+      query,
+      variables: {
+        isbn: "1449373321",
+      },
+      // Read this query non-optimistically, to test that the read function
+      // runs again, adding "1449373321" again to isbnsWeHaveRead.
+      optimistic: false,
+    })).toBe(diffs[0].result);
+
+    expect(isbnsWeHaveRead).toEqual([
+      "1449373321",
+      "1982103558",
+      "1449373321",
     ]);
   });
 });

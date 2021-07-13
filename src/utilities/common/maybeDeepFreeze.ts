@@ -1,16 +1,13 @@
-import { isDevelopment, isTest } from './environment';
-
-function isObject(value: any) {
-  return value !== null && typeof value === "object";
-}
+import '../globals'; // For __DEV__
+import { isNonNullObject } from './objects';
 
 function deepFreeze(value: any) {
   const workSet = new Set([value]);
   workSet.forEach(obj => {
-    if (isObject(obj)) {
+    if (isNonNullObject(obj)) {
       if (!Object.isFrozen(obj)) Object.freeze(obj);
       Object.getOwnPropertyNames(obj).forEach(name => {
-        if (isObject(obj[name])) workSet.add(obj[name]);
+        if (isNonNullObject(obj[name])) workSet.add(obj[name]);
       });
     }
   });
@@ -18,7 +15,7 @@ function deepFreeze(value: any) {
 }
 
 export function maybeDeepFreeze<T>(obj: T): T {
-  if (process.env.NODE_ENV !== "production" && (isDevelopment() || isTest())) {
+  if (__DEV__) {
     deepFreeze(obj);
   }
   return obj;

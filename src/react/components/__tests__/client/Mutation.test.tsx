@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import gql from 'graphql-tag';
 import { ExecutionResult, GraphQLError } from 'graphql';
-import { render, cleanup, fireEvent, wait } from '@testing-library/react';
+import { render, cleanup, fireEvent, wait, act } from '@testing-library/react';
 
 import { ApolloClient } from '../../../../core';
 import { ApolloError } from '../../../../errors';
@@ -886,24 +886,24 @@ describe('General Mutation testing', () => {
       }
     ];
 
-    let count = 0;
+    let renderCount = 0;
     const Component = () => (
       <Mutation mutation={mutation} refetchQueries={refetchQueries}>
         {(createTodo: any, resultMutation: any) => (
           <Query query={query}>
             {(resultQuery: any) => {
-              if (count === 0) {
-                setTimeout(() => createTodo());
-              } else if (count === 1) {
+              ++renderCount;
+              if (renderCount === 1) {
+                setTimeout(() => createTodo(), 10);
+              } else if (renderCount === 2) {
                 expect(resultMutation.loading).toBe(false);
                 expect(resultQuery.loading).toBe(false);
-              } else if (count === 2) {
+              } else if (renderCount === 3) {
                 expect(resultMutation.loading).toBe(true);
                 expect(stripSymbols(resultQuery.data)).toEqual(queryData);
-              } else if (count === 3) {
+              } else if (renderCount === 4) {
                 expect(resultMutation.loading).toBe(false);
               }
-              count++;
               return null;
             }}
           </Query>
@@ -917,7 +917,9 @@ describe('General Mutation testing', () => {
       </MockedProvider>
     );
 
-    await wait();
+    return wait(() => {
+      expect(renderCount).toBe(4);
+    });
   });
 
   it('allows a refetchQueries prop as string and variables have updated', async () => {
@@ -1070,7 +1072,7 @@ describe('General Mutation testing', () => {
           <Query query={query}>
             {(resultQuery: any) => {
               if (count === 0) {
-                setTimeout(() => createTodo({ refetchQueries }));
+                setTimeout(() => createTodo({ refetchQueries }), 10);
               } else if (count === 1) {
                 expect(resultMutation.loading).toBe(false);
                 expect(resultQuery.loading).toBe(false);
@@ -1305,7 +1307,7 @@ describe('General Mutation testing', () => {
         <Mutation client={client2} mutation={mutation}>
           {(createTodo: any, result: any) => {
             if (!result.called) {
-              setTimeout(() => {
+              act(() => {
                 createTodo();
               });
             }
@@ -1322,6 +1324,10 @@ describe('General Mutation testing', () => {
         </Mutation>
       </ApolloProvider>
     );
+
+    return wait(() => {
+      expect(count).toBe(3);
+    });
   });
 
   it('errors if a query is passed instead of a mutation', () => {

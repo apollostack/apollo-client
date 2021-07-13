@@ -34,6 +34,110 @@ Object {
 }
 `;
 
+exports[`writing to the store correctly merges fragment fields along multiple paths 1`] = `
+Object {
+  "Item:0f47f85d-8081-466e-9121-c94069a77c3e": Object {
+    "__typename": "Item",
+    "id": "0f47f85d-8081-466e-9121-c94069a77c3e",
+    "value": Object {
+      "__typename": "Container",
+      "value": Object {
+        "__typename": "Value",
+        "item": Object {
+          "__ref": "Item:6dc3530b-6731-435e-b12a-0089d0ae05ac",
+        },
+      },
+    },
+  },
+  "Item:6dc3530b-6731-435e-b12a-0089d0ae05ac": Object {
+    "__typename": "Item",
+    "id": "6dc3530b-6731-435e-b12a-0089d0ae05ac",
+    "value": Object {
+      "__typename": "Container",
+      "text": "Hello World",
+      "value": Object {
+        "__typename": "Value",
+      },
+    },
+  },
+  "ROOT_QUERY": Object {
+    "__typename": "Query",
+    "item({\\"id\\":\\"123\\"})": Object {
+      "__ref": "Item:0f47f85d-8081-466e-9121-c94069a77c3e",
+    },
+  },
+}
+`;
+
+exports[`writing to the store should not keep reference when type of mixed inlined field changes to non-inlined field 1`] = `
+[MockFunction] {
+  "calls": Array [
+    Array [
+      "Missing field 'price' while writing result {
+  \\"id\\": \\"1\\",
+  \\"name\\": \\"Todo 1\\",
+  \\"description\\": \\"Description 1\\",
+  \\"__typename\\": \\"ShoppingCartItem\\"
+}",
+    ],
+    Array [
+      "Missing field 'expensive' while writing result {
+  \\"id\\": 1
+}",
+    ],
+    Array [
+      "Missing field 'id' while writing result {
+  \\"__typename\\": \\"Cat\\",
+  \\"name\\": \\"cat\\"
+}",
+    ],
+  ],
+  "results": Array [
+    Object {
+      "type": "return",
+      "value": undefined,
+    },
+    Object {
+      "type": "return",
+      "value": undefined,
+    },
+    Object {
+      "type": "return",
+      "value": undefined,
+    },
+  ],
+}
+`;
+
+exports[`writing to the store should respect id fields added by fragments 1`] = `
+Object {
+  "AType:a-id": Object {
+    "__typename": "AType",
+    "b": Array [
+      Object {
+        "__ref": "BType:b-id",
+      },
+    ],
+    "id": "a-id",
+  },
+  "BType:b-id": Object {
+    "__typename": "BType",
+    "c": Object {
+      "__typename": "CType",
+      "title": "Your experience",
+      "titleSize": null,
+    },
+    "id": "b-id",
+  },
+  "ROOT_QUERY": Object {
+    "__typename": "Query",
+    "a": Object {
+      "__ref": "AType:a-id",
+    },
+  },
+}
+`;
+
 exports[`writing to the store user objects should be able to have { __typename: "Mutation" } 1`] = `
 Object {
   "Gene:{\\"id\\":\\"SLC45A2\\"}": Object {
@@ -111,5 +215,43 @@ Object {
       "name": "Clytemnestra",
     },
   },
+}
+`;
+
+exports[`writing to the store writeResultToStore shape checking should warn when it receives the wrong data with non-union fragments 1`] = `
+[MockFunction] {
+  "calls": Array [
+    Array [
+      "Missing field 'description' while writing result {
+  \\"id\\": \\"1\\",
+  \\"name\\": \\"Todo 1\\"
+}",
+    ],
+  ],
+  "results": Array [
+    Object {
+      "type": "return",
+      "value": undefined,
+    },
+  ],
+}
+`;
+
+exports[`writing to the store writeResultToStore shape checking should write the result data without validating its shape when a fragment matcher is not provided 1`] = `
+[MockFunction] {
+  "calls": Array [
+    Array [
+      "Missing field 'description' while writing result {
+  \\"id\\": \\"1\\",
+  \\"name\\": \\"Todo 1\\"
+}",
+    ],
+  ],
+  "results": Array [
+    Object {
+      "type": "return",
+      "value": undefined,
+    },
+  ],
 }
 `;

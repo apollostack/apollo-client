@@ -11,7 +11,7 @@ import {
   FetchMoreOptions,
   UpdateQueryOptions,
   DocumentNode,
-  TypedDocumentNode
+  TypedDocumentNode,
 } from '../../core';
 
 import {
@@ -28,6 +28,9 @@ import {
 } from '../types/types';
 import { OperationData } from './OperationData';
 
+type ObservableQueryOptions<TData, TVars> =
+  ReturnType<QueryData<TData, TVars>["prepareObservableQueryOptions"]>;
+
 export class QueryData<TData, TVariables> extends OperationData<
   QueryDataOptions<TData, TVariables>
 > {
@@ -39,7 +42,7 @@ export class QueryData<TData, TVariables> extends OperationData<
   private previous: {
     client?: ApolloClient<object>;
     query?: DocumentNode | TypedDocumentNode<TData, TVariables>;
-    observableQueryOptions?: {};
+    observableQueryOptions?: ObservableQueryOptions<TData, TVariables>;
     result?: QueryResult<TData, TVariables>;
     loading?: boolean;
     options?: QueryDataOptions<TData, TVariables>;
@@ -71,8 +74,6 @@ export class QueryData<TData, TVariables> extends OperationData<
 
     this.updateObservableQuery();
 
-    if (this.isMounted) this.startQuerySubscription();
-
     return this.getExecuteSsrResult() || this.getExecuteResult();
   }
 
@@ -99,12 +100,21 @@ export class QueryData<TData, TVariables> extends OperationData<
 
   public afterExecute({ lazy = false }: { lazy?: boolean } = {}) {
     this.isMounted = true;
+    const options = this.getOptions();
+    const ssrDisabled = options.ssr === false;
+    if (
+      this.currentObservable &&
+      !ssrDisabled &&
+      !this.ssrInitiated()
+    ) {
+      this.startQuerySubscription();
+    }
 
     if (!lazy || this.runLazy) {
       this.handleErrorOrCompleted();
     }
 
-    this.previousOptions = this.getOptions();
+    this.previousOptions = options;
     return this.unmount.bind(this);
   }
 
@@ -147,12 +157,6 @@ export class QueryData<TData, TVariables> extends OperationData<
     this.onNewData();
   };
 
-  private getExecuteResult(): QueryResult<TData, TVariables> {
-    const result = this.getQueryResult();
-    this.startQuerySubscription();
-    return result;
-  };
-
   private getExecuteSsrResult() {
     const { ssr, skip } = this.getOptions();
     const ssrDisabled = ssr === false;
@@ -176,7 +180,7 @@ export class QueryData<TData, TVariables> extends OperationData<
     }
 
     if (this.ssrInitiated()) {
-      const result = this.getQueryResult() || ssrLoading;
+      const result = this.getExecuteResult() || ssrLoading;
       if (result.loading && !skip) {
         this.context.renderPromises!.addQueryPromise(this, () => null);
       }
@@ -221,7 +225,7 @@ export class QueryData<TData, TVariables> extends OperationData<
 
       this.previous.observableQueryOptions = {
         ...observableQueryOptions,
-        children: null
+        children: void 0,
       };
       this.currentObservable = this.refreshClient().client.watchQuery({
         ...observableQueryOptions
@@ -243,18 +247,18 @@ export class QueryData<TData, TVariables> extends OperationData<
       return;
     }
 
-    if (this.getOptions().skip) return;
-
     const newObservableQueryOptions = {
       ...this.prepareObservableQueryOptions(),
-      children: null
+      children: void 0,
     };
 
+    if (this.getOptions().skip) {
+      this.previous.observableQueryOptions = newObservableQueryOptions;
+      return;
+    }
+
     if (
-      !equal(
-        newObservableQueryOptions,
-        this.previous.observableQueryOptions
-      )
+      !equal(newObservableQueryOptions, this.previous.observableQueryOptions)
     ) {
       this.previous.observableQueryOptions = newObservableQueryOptions;
       this.currentObservable
@@ -331,7 +335,7 @@ export class QueryData<TData, TVariables> extends OperationData<
     }
   }
 
-  private getQueryResult = (): QueryResult<TData, TVariables> => {
+  private getExecuteResult(): QueryResult<TData, TVariables> {
     let result = this.observableQueryFields() as QueryResult<TData, TVariables>;
     const options = this.getOptions();
 
@@ -488,8 +492,8 @@ export class QueryData<TData, TVariables> extends OperationData<
   private obsRefetch = (variables?: Partial<TVariables>) =>
     this.currentObservable?.refetch(variables);
 
-  private obsFetchMore = <K extends keyof TVariables>(
-    fetchMoreOptions: FetchMoreQueryOptions<TVariables, K, TData> &
+  private obsFetchMore = (
+    fetchMoreOptions: FetchMoreQueryOptions<TVariables, TData> &
       FetchMoreOptions<TData, TVariables>
   ) => this.currentObservable!.fetchMore(fetchMoreOptions);
 

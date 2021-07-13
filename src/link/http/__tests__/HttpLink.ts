@@ -11,6 +11,7 @@ import { ClientParseError } from '../serializeFetchParameter';
 import { ServerParseError } from '../parseAndCheckHttpResponse';
 import { ServerError } from '../../..';
 import DoneCallback = jest.DoneCallback;
+import { voidFetchDuringEachTest } from './helpers';
 
 const sampleQuery = gql`
   query SampleQuery {
@@ -907,15 +908,7 @@ describe('HttpLink', () => {
   });
 
   describe('Dev warnings', () => {
-    let oldFetch: WindowOrWorkerGlobalScope['fetch'];;
-    beforeEach(() => {
-      oldFetch = window.fetch;
-      delete window.fetch;
-    });
-
-    afterEach(() => {
-      window.fetch = oldFetch;
-    });
+    voidFetchDuringEachTest();
 
     it('warns if fetch is undeclared', done => {
       try {

@@ -20,6 +20,7 @@ import { itAsync } from '../../../utilities/testing/itAsync';
 import { StoreWriter } from '../writeToStore';
 import { defaultNormalizedCacheFactory, writeQueryToStore } from './helpers';
 import { InMemoryCache } from '../inMemoryCache';
+import { withErrorSpy } from '../../../testing';
 
 const getIdField = ({ id }: { id: string }) => id;
 
@@ -1402,6 +1403,145 @@ describe('writing to the store', () => {
     });
   });
 
+  it('correctly merges fragment fields along multiple paths', () => {
+    const cache = new InMemoryCache({
+      typePolicies: {
+        Container: {
+          // Uncommenting this line fixes the test, but should not be necessary,
+          // since the Container response object in question has the same
+          // identity along both paths.
+          // merge: true,
+        },
+      },
+    });
+
+    const query = gql`
+      query Query {
+        item(id: "123") {
+          id
+          value {
+            ...ContainerFragment
+          }
+        }
+      }
+
+      fragment ContainerFragment on Container {
+        value {
+          ...ValueFragment
+          item {
+            id
+            value {
+              text
+            }
+          }
+        }
+      }
+
+      fragment ValueFragment on Value {
+        item {
+          ...ItemFragment
+        }
+      }
+
+      fragment ItemFragment on Item {
+        value {
+          value {
+            __typename
+          }
+        }
+      }
+    `;
+
+    const data = {
+      item: {
+        __typename: "Item",
+        id: "0f47f85d-8081-466e-9121-c94069a77c3e",
+        value: {
+          __typename: "Container",
+          value: {
+            __typename: "Value",
+            item: {
+              __typename: "Item",
+              id: "6dc3530b-6731-435e-b12a-0089d0ae05ac",
+              value: {
+                __typename: "Container",
+                text: "Hello World",
+                value: {
+                  __typename: "Value"
+                },
+              },
+            },
+          },
+        },
+      },
+    };
+
+    cache.writeQuery({
+      query,
+      data,
+    });
+
+    expect(cache.readQuery({ query })).toEqual(data);
+    expect(cache.extract()).toMatchSnapshot();
+  });
+
+  it('should respect id fields added by fragments', () => {
+    const query = gql`
+      query ABCQuery {
+        __typename
+        a {
+          __typename
+          id
+          ...SharedFragment
+          b {
+            __typename
+            c {
+              __typename
+              title
+              titleSize
+            }
+          }
+        }
+      }
+      fragment SharedFragment on AShared {
+        __typename
+        b {
+          __typename
+          id
+          c {
+            __typename
+          }
+        }
+      }
+    `;
+
+    const data = {
+      __typename: "Query",
+      a: {
+        __typename: "AType",
+        id: "a-id",
+        b: [{
+          __typename: "BType",
+          id: "b-id",
+          c: {
+            __typename: "CType",
+            title: "Your experience",
+            titleSize: null
+          },
+        }],
+      },
+    };
+
+    const cache = new InMemoryCache({
+      possibleTypes: { AShared: ["AType"] }
+    });
+
+    cache.writeQuery({ query, data });
+    expect(cache.readQuery({ query })).toEqual(data);
+
+    expect(cache.extract()).toMatchSnapshot();
+  });
+
   it('should allow a union of objects of a different type, when overwriting a generated id with a real id', () => {
     const dataWithPlaceholder = {
       author: {
@@ -1659,7 +1799,7 @@ describe('writing to the store', () => {
       }
     `;
 
-    it('should write the result data without validating its shape when a fragment matcher is not provided', () => {
+    withErrorSpy(it, 'should write the result data without validating its shape when a fragment matcher is not provided', () => {
       const result = {
         todos: [
           {
@@ -1684,7 +1824,7 @@ describe('writing to the store', () => {
       expect((newStore as any).lookup('1')).toEqual(result.todos[0]);
     });
 
-    it('should warn when it receives the wrong data with non-union fragments', () => {
+    withErrorSpy(it, 'should warn when it receives the wrong data with non-union fragments', () => {
       const result = {
         todos: [
           {
@@ -1701,13 +1841,11 @@ describe('writing to the store', () => {
         }),
       );
 
-      expect(() => {
-        writeQueryToStore({
-          writer,
-          query,
-          result,
-        });
-      }).toThrowError(/Missing field 'description' /);
+      writeQueryToStore({
+        writer,
+        query,
+        result,
+      });
     });
 
     it('should warn when it receives the wrong data inside a fragment', () => {
@@ -1754,13 +1892,11 @@ describe('writing to the store', () => {
         }),
       );
 
-      expect(() => {
-        writeQueryToStore({
-          writer,
-          query: queryWithInterface,
-          result,
-        });
-      }).toThrowError(/Missing field 'price' /);
+      writeQueryToStore({
+        writer,
+        query: queryWithInterface,
+        result,
+      });
     });
 
     it('should warn if a result is missing __typename when required', () => {
@@ -1781,13 +1917,11 @@ describe('writing to the store', () => {
         }),
       );
 
-      expect(() => {
-        writeQueryToStore({
-          writer,
-          query: addTypenameToDocument(query),
-          result,
-        });
-      }).toThrowError(/Missing field '__typename' /);
+      writeQueryToStore({
+        writer,
+        query: addTypenameToDocument(query),
+        result,
+      });
     });
 
     it('should not warn if a field is null', () => {
@@ -2051,7 +2185,7 @@ describe('writing to the store', () => {
     });
   });
 
-  it('should not keep reference when type of mixed inlined field changes to non-inlined field', () => {
+  withErrorSpy(it, 'should not keep reference when type of mixed inlined field changes to non-inlined field', () => {
     const store = defaultNormalizedCacheFactory();
 
     const query = gql`

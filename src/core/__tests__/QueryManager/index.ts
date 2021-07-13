@@ -903,10 +903,7 @@ describe('QueryManager', () => {
               break;
             case 2:
               expect(stripSymbols(result.data)).toEqual(data3);
-              expect(result.data).not.toBe(firstResultData);
-              expect(result.data.b).toEqual(firstResultData.b);
-              expect(result.data.d).not.toBe(firstResultData.d);
-              expect(result.data.d.f).toEqual(firstResultData.d.f);
+              expect(result.data).toBe(firstResultData);
               resolve();
               break;
             default:
@@ -1353,7 +1350,6 @@ describe('QueryManager', () => {
   });
 
   itAsync('supports cache-only fetchPolicy fetching only cached data', (resolve, reject) => {
-    const spy = jest.spyOn(console, "warn").mockImplementation();
     const primeQuery = gql`
       query primeQuery {
         luke: people_one(id: 1) {
@@ -1398,13 +1394,9 @@ describe('QueryManager', () => {
         return handle.result().then(result => {
           expect(result.data['luke'].name).toBe('Luke Skywalker');
           expect(result.data).not.toHaveProperty('vader');
-          expect(spy).toHaveBeenCalledTimes(1);
         });
       })
-      .finally(() => {
-        spy.mockRestore();
-      })
-      .then(resolve, reject)
+      .then(resolve, reject);
   });
 
   itAsync('runs a mutation', (resolve, reject) => {
@@ -4307,6 +4299,102 @@ describe('QueryManager', () => {
     });
   });
 
+  describe('refetching specified queries', () => {
+    itAsync('returns a promise resolving when all queries have been refetched', (resolve, reject) => {
+      const query = gql`
+        query GetAuthor {
+          author {
+            firstName
+            lastName
+          }
+        }
+      `;
+
+      const data = {
+        author: {
+          firstName: 'John',
+          lastName: 'Smith',
+        },
+      };
+
+      const dataChanged = {
+        author: {
+          firstName: 'John changed',
+          lastName: 'Smith',
+        },
+      };
+
+      const query2 = gql`
+        query GetAuthor2 {
+          author2 {
+            firstName
+            lastName
+          }
+        }
+      `;
+
+      const data2 = {
+        author2: {
+          firstName: 'John',
+          lastName: 'Smith',
+        },
+      };
+
+      const data2Changed = {
+        author2: {
+          firstName: 'John changed',
+          lastName: 'Smith',
+        },
+      };
+
+      const queryManager = createQueryManager({
+        link: mockSingleLink({
+          request: { query },
+          result: { data },
+        }, {
+          request: { query: query2 },
+          result: { data: data2 },
+        }, {
+          request: { query },
+          result: { data: dataChanged },
+        }, {
+          request: { query: query2 },
+          result: { data: data2Changed },
+        }).setOnError(reject),
+      });
+
+      const observable = queryManager.watchQuery<any>({ query });
+      const observable2 = queryManager.watchQuery<any>({ query: query2 });
+
+      return Promise.all([
+        observableToPromise({ observable }, result =>
+          expect(stripSymbols(result.data)).toEqual(data),
+        ),
+        observableToPromise({ observable: observable2 }, result =>
+          expect(stripSymbols(result.data)).toEqual(data2),
+        ),
+      ]).then(() => {
+        observable.subscribe({ next: () => null });
+        observable2.subscribe({ next: () => null });
+
+        const results: any[] = [];
+        queryManager.refetchQueries({
+          include: ['GetAuthor', 'GetAuthor2'],
+        }).forEach(result => results.push(result));
+
+        return Promise.all(results).then(() => {
+          const result = getCurrentQueryResult(observable);
+          expect(result.partial).toBe(false);
+          expect(stripSymbols(result.data)).toEqual(dataChanged);
+
+          const result2 = getCurrentQueryResult(observable2);
+          expect(result2.partial).toBe(false);
+          expect(stripSymbols(result2.data)).toEqual(data2Changed);
+        });
+      }).then(resolve, reject);
+    });
+  });
+
   describe('loading state', () => {
     itAsync('should be passed as false if we are not watching a query', (resolve, reject) => {
       const query = gql`
@@ -4536,16 +4624,12 @@ describe('QueryManager', () => {
   });
 
   describe('refetchQueries', () => {
-    const oldWarn = console.warn;
-    let timesWarned = 0;
-
+    let consoleWarnSpy: jest.SpyInstance;
     beforeEach(() => {
-      // clear warnings
-      timesWarned = 0;
-      // mock warn method
-      console.warn = (...args: any[]) => {
-        timesWarned++;
-      };
+      consoleWarnSpy = jest.spyOn(console, "warn").mockImplementation();
+    });
+    afterEach(() => {
+      consoleWarnSpy.mockRestore();
     });
 
     itAsync('should refetch the right query when a result is successfully returned', (resolve, reject) => {
@@ -4684,12 +4768,14 @@ describe('QueryManager', () => {
         },
         result => {
           expect(stripSymbols(result.data)).toEqual(secondReqData);
-          expect(timesWarned).toBe(0);
+          expect(consoleWarnSpy).toHaveBeenLastCalledWith(
+            'Unknown query named "fakeQuery" requested in refetchQueries options.include array'
+          );
         },
       ).then(resolve, reject);
     });
 
-    itAsync('should ignore without warning a query name that is asked to refetch with no active subscriptions', (resolve, reject) => {
+    itAsync('should ignore (with warning) a query named in refetchQueries that has no active subscriptions', (resolve, reject) => {
       const mutation = gql`
         mutation changeAuthorName {
           changeAuthorName(newName: "Jack Smith") {
@@ -4743,16 +4829,17 @@ describe('QueryManager', () => {
       const observable = queryManager.watchQuery<any>({ query });
       return observableToPromise({ observable }, result => {
         expect(stripSymbols(result.data)).toEqual(data);
-      })
-        .then(() => {
-          // The subscription has been stopped already
-          return queryManager.mutate({
-            mutation,
-            refetchQueries: ['getAuthors'],
-          });
-        })
-        .then(() => expect(timesWarned).toBe(0))
-        .then(resolve, reject);
+      }).then(() => {
+        // The subscription has been stopped already
+        return queryManager.mutate({
+          mutation,
+          refetchQueries: ['getAuthors'],
+        });
+      }).then(() => {
+        expect(consoleWarnSpy).toHaveBeenLastCalledWith(
+          'Unknown query named "getAuthors" requested in refetchQueries options.include array'
+        );
+      }).then(resolve, reject);
     });
 
     itAsync('also works with a query document and variables', (resolve, reject) => {
@@ -4812,31 +4899,29 @@ describe('QueryManager', () => {
         },
       );
       const observable = queryManager.watchQuery<any>({ query, variables });
-      let count = 0;
-      observable.subscribe({
-        next: result => {
-          const resultData = stripSymbols(result.data);
-          if (count === 0) {
-            expect(resultData).toEqual(data);
-            queryManager.mutate({
-              mutation,
-              variables: mutationVariables,
-              refetchQueries: [{ query, variables }],
+
+      subscribeAndCount(reject, observable, (count, result) => {
+        if (count === 1) {
+          expect(result.data).toEqual(data);
+          queryManager.mutate({
+            mutation,
+            variables: mutationVariables,
+            refetchQueries: [{ query, variables }],
+          });
+        } else if (count === 2) {
+          expect(result.data).toEqual(secondReqData);
+          expect(observable.getCurrentResult().data).toEqual(secondReqData);
+
+          return new Promise(res => setTimeout(res, 10)).then(() => {
+            // Make sure the QueryManager cleans up legacy one-time queries like
+            // the one we requested above using refetchQueries.
+            queryManager["queries"].forEach((queryInfo, queryId) => {
+              expect(queryId).not.toContain("legacyOneTimeQuery");
             });
-          }
-          if (count === 1) {
-            setTimeout(() => {
-              expect(stripSymbols(observable.getCurrentResult().data)).toEqual(
-                secondReqData,
-              );
-              resolve();
-            }, 1);
-
-            expect(resultData).toEqual(secondReqData);
-          }
-
-          count++;
-        },
+          }).then(resolve, reject);
+        } else {
+          reject("too many results");
+        }
       });
     });
 
@@ -5133,16 +5218,224 @@ describe('QueryManager', () => {
         },
       ).then(resolve, reject);
     });
+  });
 
-    afterEach(() => {
-      console.warn = oldWarn;
+  describe('onQueryUpdated', () => {
+    const mutation = gql`
+      mutation changeAuthorName {
+        changeAuthorName(newName: "Jack Smith") {
+          firstName
+          lastName
+        }
+      }
+    `;
+
+    const mutationData = {
+      changeAuthorName: {
+        firstName: 'Jack',
+        lastName: 'Smith',
+      },
+    };
+
+    const query = gql`
+      query getAuthors($id: ID!) {
+        author(id: $id) {
+          firstName
+          lastName
+        }
+      }
+    `;
+
+    const data = {
+      author: {
+        firstName: 'John',
+        lastName: 'Smith',
+      },
+    };
+
+    const secondReqData = {
+      author: {
+        firstName: 'Jane',
+        lastName: 'Johnson',
+      },
+    };
+
+    const variables = { id: '1234' };
+
+    function makeQueryManager(reject: (reason?: any) => void) {
+      return mockQueryManager(
+        reject,
+        {
+          request: { query, variables },
+          result: { data },
+        },
+        {
+          request: { query, variables },
+          result: { data: secondReqData },
+        },
+        {
+          request: { query: mutation },
+          result: { data: mutationData },
+        },
+      );
+    }
+
+    itAsync('should refetch the right query when a result is successfully returned', (resolve, reject) => {
+      const queryManager = makeQueryManager(reject);
+
+      const observable = queryManager.watchQuery<any>({
+        query,
+        variables,
+        notifyOnNetworkStatusChange: false,
+      });
+
+      let finishedRefetch = false;
+
+      return observableToPromise(
+        { observable },
+        result => {
+          expect(stripSymbols(result.data)).toEqual(data);
+
+          return queryManager.mutate({
+            mutation,
+
+            update(cache) {
+              cache.modify({
+                fields: {
+                  author(_, { INVALIDATE }) {
+                    return INVALIDATE;
+                  },
+                },
+              });
+            },
+
+            onQueryUpdated(obsQuery) {
+              expect(obsQuery.options.query).toBe(query);
+              return obsQuery.refetch().then(async (result) => {
+                // Wait a bit to make sure the mutation really awaited the
+                // refetching of the query.
+                await new Promise(resolve => setTimeout(resolve, 100));
+                finishedRefetch = true;
+                return result;
+              });
+            },
+          }).then(() => {
+            expect(finishedRefetch).toBe(true);
+          });
+        },
+
+        result => {
+          expect(stripSymbols(observable.getCurrentResult().data)).toEqual(
+            secondReqData,
+          );
+          expect(stripSymbols(result.data)).toEqual(secondReqData);
+          expect(finishedRefetch).toBe(true);
+        },
+      ).then(resolve, reject);
+    });
+
+    itAsync('should refetch using the original query context (if any)', (resolve, reject) => {
+      const queryManager = makeQueryManager(reject);
+
+      const headers = {
+        someHeader: 'some value',
+      };
+
+      const observable = queryManager.watchQuery<any>({
+        query,
+        variables,
+        context: {
+          headers,
+        },
+        notifyOnNetworkStatusChange: false,
+      });
+
+      return observableToPromise(
+        { observable },
+        result => {
+          expect(result.data).toEqual(data);
+
+          queryManager.mutate({
+            mutation,
+
+            update(cache) {
+              cache.modify({
+                fields: {
+                  author(_, { INVALIDATE }) {
+                    return INVALIDATE;
+                  },
+                },
+              });
+            },
+
+            onQueryUpdated(obsQuery) {
+              expect(obsQuery.options.query).toBe(query);
+              return obsQuery.refetch();
+            },
+          });
+        },
+
+        result => {
+          expect(result.data).toEqual(secondReqData);
+          const context = (queryManager.link as MockApolloLink).operation!.getContext();
+          expect(context.headers).not.toBeUndefined();
+          expect(context.headers.someHeader).toEqual(headers.someHeader);
+        },
+      ).then(resolve, reject);
+    });
+
+    itAsync('should refetch using the specified context, if provided', (resolve, reject) => {
+      const queryManager = makeQueryManager(reject);
+
+      const observable = queryManager.watchQuery<any>({
+        query,
+        variables,
+        notifyOnNetworkStatusChange: false,
+      });
+
+      const headers = {
+        someHeader: 'some value',
+      };
+
+      return observableToPromise(
+        { observable },
+        result => {
+          expect(result.data).toEqual(data);
+
+          queryManager.mutate({
+            mutation,
+
+            update(cache) {
+              cache.evict({ fieldName: "author" });
+            },
+
+            onQueryUpdated(obsQuery) {
+              expect(obsQuery.options.query).toBe(query);
+              return obsQuery.reobserve({
+                fetchPolicy: "network-only",
+                context: {
+                  ...obsQuery.options.context,
+                  headers,
+                },
+              });
+            },
+          });
+        },
+
+        result => {
+          expect(result.data).toEqual(secondReqData);
+          const context = (queryManager.link as MockApolloLink).operation!.getContext();
+          expect(context.headers).not.toBeUndefined();
+          expect(context.headers.someHeader).toEqual(headers.someHeader);
+        },
+      ).then(resolve, reject);
     });
   });
 
   describe('awaitRefetchQueries', () => {
     const awaitRefetchTest =
-    ({ awaitRefetchQueries, testQueryError = false }: MutationBaseOptions & { testQueryError?: boolean }) =>
-    new Promise((resolve, reject) => {
+    ({ awaitRefetchQueries, testQueryError = false }: MutationBaseOptions<any, any, any> & { testQueryError?: boolean }) =>
+    new Promise<void>((resolve, reject) => {
       const query = gql`
         query getAuthors($id: ID!) {
           author(id: $id) {
@@ -5215,7 +5508,7 @@ describe('QueryManager', () => {
         { observable },
         result => {
           expect(stripSymbols(result.data)).toEqual(queryData);
-          const mutateOptions: MutationOptions = {
+          const mutateOptions: MutationOptions<any, any, any> = {
             mutation,
             refetchQueries: ['getAuthors'],
           };
@@ -5242,7 +5535,7 @@ describe('QueryManager', () => {
           expect(stripSymbols(result.data)).toEqual(secondReqData);
         },
       )
-      .then(resolve)
+      .then(() => resolve())
       .catch(error => {
         const isRefetchError = awaitRefetchQueries && testQueryError &&
           error.message.includes(refetchError?.message);
@@ -5443,7 +5736,11 @@ describe('QueryManager', () => {
       const queryManager = createQueryManager({
         link: mockSingleLink({
           request: { query },
-          result: { author: { firstName: 'John' } },
+          result: {
+            data: {
+              author: { firstName: 'John' },
+            },
+          },
         }),
       });
 
@@ -5451,6 +5748,7 @@ describe('QueryManager', () => {
 
       expect(queryManager['inFlightLinkObservables'].size).toBe(1)
     });
+
     it('should allow overriding global queryDeduplication: true to false', () => {
       const query = gql`
         query {
@@ -5459,10 +5757,15 @@ describe('QueryManager', () => {
           }
         }
       `;
+
       const queryManager = createQueryManager({
         link: mockSingleLink({
           request: { query },
-          result: { author: { firstName: 'John' } },
+          result: {
+            data: {
+              author: { firstName: 'John' },
+            },
+          },
         }),
         queryDeduplication: true,
       });
@@ -5477,8 +5780,8 @@ describe('QueryManager', () => {
     let verbosity: ReturnType<typeof setVerbosity>;
     let spy: any;
     beforeEach(() => {
-      verbosity = setVerbosity("warn");
-      spy = jest.spyOn(console, "warn").mockImplementation();
+      verbosity = setVerbosity("debug");
+      spy = jest.spyOn(console, "debug").mockImplementation();
     });
 
     afterEach(() => {

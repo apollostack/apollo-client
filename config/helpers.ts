@@ -11,7 +11,7 @@ export function eachFile(dir: string, callback: (
 ) => any) {
   const promises: Promise<any>[] = [];
 
-  return new Promise((resolve, reject) => {
+  return new Promise<void>((resolve, reject) => {
     glob(`${dir}/**/*.js`, (error, files) => {
       if (error) return reject(error);
 

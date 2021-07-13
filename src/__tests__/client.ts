@@ -20,6 +20,7 @@ import {
   stripSymbols,
   subscribeAndCount,
   mockSingleLink,
+  withErrorSpy,
 } from '../testing';
 
 describe('client', () => {
@@ -2081,6 +2082,7 @@ describe('client', () => {
         resolve();
       });
   });
+
   itAsync('should allow errors to be returned from a mutation', (resolve, reject) => {
     const mutation = gql`
       mutation {
@@ -2102,7 +2104,12 @@ describe('client', () => {
     const client = new ApolloClient({
       link: mockSingleLink({
         request: { query: mutation },
-        result: { data, errors },
+        result: {
+          errors,
+          data: {
+            newPerson: data,
+          },
+        },
       }).setOnError(reject),
       cache: new InMemoryCache({ addTypename: false }),
     });
@@ -2112,7 +2119,9 @@ describe('client', () => {
         expect(result.errors).toBeDefined();
         expect(result.errors!.length).toBe(1);
         expect(result.errors![0].message).toBe(errors[0].message);
-        expect(result.data).toEqual(data);
+        expect(result.data).toEqual({
+          newPerson: data,
+        });
         resolve();
       })
       .catch((error: ApolloError) => {
@@ -2132,9 +2141,11 @@ describe('client', () => {
       }
     `;
     const data = {
-      person: {
-        firstName: 'John',
-        lastName: 'Smith',
+      newPerson: {
+        person: {
+          firstName: 'John',
+          lastName: 'Smith',
+        },
       },
     };
     const errors = [new Error('Some kind of GraphQL error.')];
@@ -2199,7 +2210,8 @@ describe('client', () => {
     {
       const { data, optimisticData } = client.cache as any;
       expect(optimisticData).not.toBe(data);
-      expect(optimisticData.parent).toBe(data);
+      expect(optimisticData.parent).toBe(data.stump);
+      expect(optimisticData.parent.parent).toBe(data);
     }
 
     mutatePromise
@@ -2208,7 +2220,7 @@ describe('client', () => {
       })
       .catch((_: ApolloError) => {
         const { data, optimisticData } = client.cache as any;
-        expect(optimisticData).toBe(data);
+        expect(optimisticData).toBe(data.stump);
         resolve();
       });
   });
@@ -2426,6 +2438,33 @@ describe('client', () => {
     expect(spy).toHaveBeenCalled();
   });
 
+  it('has a refetchQueries method which calls QueryManager', async () => {
+    const client = new ApolloClient({
+      link: ApolloLink.empty(),
+      cache: new InMemoryCache(),
+    });
+
+    const spy = jest.spyOn(client['queryManager'], 'refetchQueries');
+    spy.mockImplementation(() => new Map);
+
+    const options = { include: ['Author1'] };
+    await client.refetchQueries(options);
+
+    expect(spy).toHaveBeenCalledWith(options);
+  });
+
+  it('has a getObservableQueries method which calls QueryManager', async () => {
+    const client = new ApolloClient({
+      link: ApolloLink.empty(),
+      cache: new InMemoryCache(),
+    });
+
+    // @ts-ignore
+    const spy = jest.spyOn(client.queryManager, 'getObservableQueries');
+    await client.getObservableQueries();
+    expect(spy).toHaveBeenCalled();
+  });
+
   itAsync('should propagate errors from network interface to observers', (resolve, reject) => {
     const link = ApolloLink.from([
       () =>
@@ -2554,8 +2593,9 @@ describe('client', () => {
         const lastError = observable.getLastError();
         const lastResult = observable.getLastResult();
 
-        expect(lastResult.loading).toBeFalsy();
-        expect(lastResult.networkStatus).toBe(8);
+        expect(lastResult).toBeTruthy();
+        expect(lastResult!.loading).toBe(false);
+        expect(lastResult!.networkStatus).toBe(8);
 
         observable.resetLastResults();
         subscription = observable.subscribe(observerOptions);
@@ -2602,7 +2642,7 @@ describe('client', () => {
     }).then(resolve, reject);
   });
 
-  itAsync('should warn if server returns wrong data', (resolve, reject) => {
+  withErrorSpy(itAsync, 'should warn if server returns wrong data', (resolve, reject) => {
     const query = gql`
       query {
         todos {
@@ -2625,6 +2665,7 @@ describe('client', () => {
         ],
       },
     };
+
     const link = mockSingleLink({
       request: { query },
       result,
@@ -2637,14 +2678,9 @@ describe('client', () => {
       }),
     });
 
-    return client.query({ query }).then(
-      result => {
-        fail("should have errored");
-      },
-      error => {
-        expect(error.message).toMatch(/Missing field 'description' /);
-      },
-    ).then(resolve, reject);
+    return client.query({ query }).then(({ data }) => {
+      expect(data).toEqual(result.data);
+    }).then(resolve, reject);
   });
 
   itAsync('runs a query with the connection directive and writes it to the store key defined in the directive', (resolve, reject) => {
@@ -3024,11 +3060,9 @@ describe('@connection', () => {
     client.cache.evict({ fieldName: "a" });
     await wait();
 
-    // The results are structurally the same, but the result objects have
-    // been recomputed for queries that involved the ROOT_QUERY.a field.
-    expect(checkLastResult(aResults, a456)).not.toBe(a456);
+    expect(checkLastResult(aResults, a456)).toBe(a456);
     expect(checkLastResult(bResults, bOyez)).toBe(bOyez);
-    expect(checkLastResult(abResults, a456bOyez)).not.toBe(a456bOyez);
+    expect(checkLastResult(abResults, a456bOyez)).toBe(a456bOyez);
 
     const cQuery = gql`{ c }`;
     // Passing cache-only as the fetchPolicy allows the { c: "see" }
@@ -3077,15 +3111,11 @@ describe('@connection', () => {
       { a: 123 },
       { a: 234 },
       { a: 456 },
-      // Delivered again because we explicitly called resetLastResults.
-      { a: 456 },
     ]);
 
     expect(bResults).toEqual([
       { b: "asdf" },
       { b: "ASDF" },
-      { b: "oyez" },
-      // Delivered again because we explicitly called resetLastResults.
       { b: "oyez" },
     ]);
 
@@ -3093,8 +3123,6 @@ describe('@connection', () => {
       { a: 123, b: "asdf" },
       { a: 234, b: "asdf" },
       { a: 234, b: "ASDF" },
-      { a: 456, b: "oyez" },
-      // Delivered again because we explicitly called resetLastResults.
       { a: 456, b: "oyez" },
     ]);
 
@@ -3291,7 +3319,6 @@ describe('@connection', () => {
               // again to perform an additional transition.
               this.nextFetchPolicy = fetchPolicy => {
                 ++nextFetchPolicyCallCount;
-                expect(fetchPolicy).toBe("cache-and-network");
                 return "cache-first";
               };
               return "cache-and-network";
@@ -3344,9 +3371,8 @@ describe('@connection', () => {
           client.cache.evict({ fieldName: "count" });
         } else if (handleCount === 6) {
           expect(result.data).toEqual({ count: 2 });
-          expect(nextFetchPolicyCallCount).toBe(3);
+          expect(nextFetchPolicyCallCount).toBe(4);
           expect(obs.options.fetchPolicy).toBe("cache-first");
-          expect(obs.options.nextFetchPolicy).toBeUndefined();
           setTimeout(resolve, 50);
         } else {
           reject("too many results");

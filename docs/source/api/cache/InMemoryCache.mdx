@@ -129,6 +129,21 @@ By specifying the ID of another cached object, you can query arbitrary cached da
 </td>
 </tr>
 
+<tr>
+<td>
+
+###### `canonizeResults`
+
+`Boolean`
+</td>
+<td>
+
+If `true`, result objects read from the cache will be _canonized_, which means deeply-equal objects will also be `===` (literally the same object), allowing much more efficient comparison of past/present results.
+
+The default value is `true`.
+</td>
+</tr>
+
 </tbody>
 </table>
 
@@ -232,6 +247,21 @@ By specifying the ID of another cached object, you can modify arbitrary cached d
 If `true`, automatically refresh all active queries that depend on at least one field that's modified by this call.
 
 The default value is `true`.
+</td>
+</tr>
+
+<tr>
+<td>
+
+###### `overwrite`
+
+`Boolean`
+</td>
+<td>
+
+If `true`, ignore existing cache data when calling `merge` functions, allowing incoming data to replace existing data, without warnings about data loss.
+
+The default value is `false`.
 </td>
 </tr>
 
@@ -382,6 +412,22 @@ A map of any GraphQL variable names and values required by `fragment`.
 </td>
 </tr>
 
+
+<tr>
+<td>
+
+###### `canonizeResults`
+
+`Boolean`
+</td>
+<td>
+
+If `true`, result objects read from the cache will be _canonized_, which means deeply-equal objects will also be `===` (literally the same object), allowing much more efficient comparison of past/present results.
+
+The default value is `true`.
+</td>
+</tr>
+
 </tbody>
 </table>
 
@@ -505,6 +551,21 @@ The default value is `true`.
 </td>
 </tr>
 
+<tr>
+<td>
+
+###### `overwrite`
+
+`Boolean`
+</td>
+<td>
+
+If `true`, ignore existing cache data when calling `merge` functions, allowing incoming data to replace existing data, without warnings about data loss.
+
+The default value is `false`.
+</td>
+</tr>
+
 </tbody>
 </table>
 
@@ -624,7 +685,7 @@ See [Modifier function API](#modifier-function-api) below.
 
 If `true`, also modifies the optimistically cached values for included fields.
 
-The default value is `false`. 
+The default value is `false`.
 </td>
 </tr>
 

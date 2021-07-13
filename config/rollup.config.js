@@ -2,20 +2,63 @@ import nodeResolve from '@rollup/plugin-node-resolve';
 import { terser as minify } from 'rollup-plugin-terser';
 import path from 'path';
 
-const packageJson = require('../package.json');
 const entryPoints = require('./entryPoints');
-
 const distDir = './dist';
 
-function isExternal(id) {
-  return !(id.startsWith("./") || id.startsWith("../"));
+function isExternal(id, parentId, entryPointsAreExternal = true) {
+  // Rollup v2.26.8 started passing absolute id strings to this function, thanks
+  // apparently to https://github.com/rollup/rollup/pull/3753, so we relativize
+  // the id again in those cases.
+  if (path.isAbsolute(id)) {
+    const posixId = toPosixPath(id);
+    const posixParentId = toPosixPath(parentId);
+    id = path.posix.relative(
+      path.posix.dirname(posixParentId),
+      posixId,
+    );
+    if (!id.startsWith(".")) {
+      id = "./" + id;
+    }
+  }
+
+  const isRelative =
+    id.startsWith("./") ||
+    id.startsWith("../");
+
+  if (!isRelative) {
+    return true;
+  }
+
+  if (entryPointsAreExternal &&
+      entryPoints.check(id, parentId)) {
+    return true;
+  }
+
+  return false;
+}
+
+// Adapted from https://github.com/meteor/meteor/blob/devel/tools/static-assets/server/mini-files.ts
+function toPosixPath(p) {
+  // Sometimes, you can have a path like \Users\IEUser on windows, and this
+  // actually means you want C:\Users\IEUser
+  if (p[0] === '\\') {
+    p = process.env.SystemDrive + p;
+  }
+
+  p = p.replace(/\\/g, '/');
+  if (p[1] === ':') {
+    // Transform "C:/bla/bla" to "/c/bla/bla"
+    p = '/' + p[0] + p.slice(2);
+  }
+
+  return p;
 }
 
 function prepareCJS(input, output) {
   return {
     input,
-    external(id) {
-      return isExternal(id);
+    external(id, parentId) {
+      return isExternal(id, parentId, false);
     },
     output: {
       file: output,
@@ -45,7 +88,7 @@ function prepareCJSMinified(input) {
         compress: {
           toplevel: true,
           global_defs: {
-            '@process.env.NODE_ENV': JSON.stringify('production'),
+            '@__DEV__': 'false',
           },
         },
       }),
@@ -62,7 +105,7 @@ function prepareBundle({
   return {
     input: `${dir}/index.js`,
     external(id, parentId) {
-      return isExternal(id) || entryPoints.check(id, parentId);
+      return isExternal(id, parentId, true);
     },
     output: {
       file: `${dir}/${bundleName}.cjs.js`,
@@ -81,7 +124,7 @@ export default [
   ...entryPoints.map(prepareBundle),
   // Convert the ESM entry point to a single CJS bundle.
   prepareCJS(
-    './dist/index.js',
+    './dist/core/index.js',
     './dist/apollo-client.cjs.js',
   ),
   // Minify that single CJS bundle.

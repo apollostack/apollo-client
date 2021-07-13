@@ -67,6 +67,12 @@ export namespace DataProxy {
      * readQuery method can be omitted. Defaults to false.
      */
     optimistic?: boolean;
+    /**
+     * Whether to canonize cache results before returning them. Canonization
+     * takes some extra time, but it speeds up future deep equality comparisons.
+     * Defaults to true.
+     */
+    canonizeResults?: boolean;
   }
 
   export interface ReadFragmentOptions<TData, TVariables>
@@ -82,31 +88,35 @@ export namespace DataProxy {
      * readQuery method can be omitted. Defaults to false.
      */
     optimistic?: boolean;
+    /**
+     * Whether to canonize cache results before returning them. Canonization
+     * takes some extra time, but it speeds up future deep equality comparisons.
+     * Defaults to true.
+     */
+    canonizeResults?: boolean;
+  }
+
+  export interface WriteOptions<TData> {
+    /**
+     * The data you will be writing to the store.
+     */
+    data: TData;
+    /**
+     * Whether to notify query watchers (default: true).
+     */
+    broadcast?: boolean;
+    /**
+     * When true, ignore existing field data rather than merging it with
+     * incoming data (default: false).
+     */
+    overwrite?: boolean;
   }
 
   export interface WriteQueryOptions<TData, TVariables>
-    extends Query<TVariables, TData> {
-    /**
-     * The data you will be writing to the store.
-     */
-    data: TData;
-    /**
-     * Whether to notify query watchers (default: true).
-     */
-    broadcast?: boolean;
-  }
+    extends Query<TVariables, TData>, WriteOptions<TData> {}
 
   export interface WriteFragmentOptions<TData, TVariables>
-    extends Fragment<TVariables, TData> {
-    /**
-     * The data you will be writing to the store.
-     */
-    data: TData;
-    /**
-     * Whether to notify query watchers (default: true).
-     */
-    broadcast?: boolean;
-  }
+    extends Fragment<TVariables, TData>, WriteOptions<TData> {}
 
   export type DiffResult<T> = {
     result?: T;

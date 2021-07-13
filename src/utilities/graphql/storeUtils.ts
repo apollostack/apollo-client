@@ -15,10 +15,11 @@ import {
   SelectionNode,
   NameNode,
   SelectionSetNode,
+  DocumentNode,
 } from 'graphql';
 
-import stringify from 'fast-json-stable-stringify';
 import { InvariantError } from 'ts-invariant';
+import { isNonNullObject } from '../common/objects';
 import { FragmentMap, getFragmentFromSelection } from './fragments';
 
 export interface Reference {
@@ -47,6 +48,14 @@ export type StoreValue =
 export interface StoreObject {
   __typename?: string;
   [storeFieldName: string]: StoreValue;
+}
+
+export function isDocumentNode(value: any): value is DocumentNode {
+  return (
+    isNonNullObject(value) &&
+    (value as DocumentNode).kind === "Document" &&
+    Array.isArray((value as DocumentNode).definitions)
+  );
 }
 
 function isStringValue(value: ValueNode): value is StringValueNode {
@@ -177,7 +186,7 @@ const KNOWN_DIRECTIVES: string[] = [
   'export',
 ];
 
-export function getStoreKeyName(
+export const getStoreKeyName = Object.assign(function (
   fieldName: string,
   args?: Record<string, any> | null,
   directives?: Directives,
@@ -202,7 +211,7 @@ export function getStoreKeyName(
         filteredArgs[key] = args[key];
       });
 
-      return `${directives['connection']['key']}(${JSON.stringify(
+      return `${directives['connection']['key']}(${stringify(
         filteredArgs,
       )})`;
     } else {
@@ -224,7 +233,7 @@ export function getStoreKeyName(
     Object.keys(directives).forEach(key => {
       if (KNOWN_DIRECTIVES.indexOf(key) !== -1) return;
       if (directives[key] && Object.keys(directives[key]).length) {
-        completeFieldName += `@${key}(${JSON.stringify(directives[key])})`;
+        completeFieldName += `@${key}(${stringify(directives[key])})`;
       } else {
         completeFieldName += `@${key}`;
       }
@@ -232,6 +241,28 @@ export function getStoreKeyName(
   }
 
   return completeFieldName;
+}, {
+  setStringify(s: typeof stringify) {
+    const previous = stringify;
+    stringify = s;
+    return previous;
+  },
+});
+
+// Default stable JSON.stringify implementation. Can be updated/replaced with
+// something better by calling getStoreKeyName.setStringify.
+let stringify = function defaultStringify(value: any): string {
+  return JSON.stringify(value, stringifyReplacer);
+};
+
+function stringifyReplacer(_key: string, value: any): any {
+  if (isNonNullObject(value) && !Array.isArray(value)) {
+    value = Object.keys(value).sort().reduce((copy, key) => {
+      copy[key] = value[key];
+      return copy;
+    }, {} as Record<string, any>);
+  }
+  return value;
 }
 
 export function argumentsObjectFromField(

@@ -8,7 +8,7 @@ import { ApolloError } from '../../../../errors';
 import { ApolloLink } from '../../../../link/core';
 import { InMemoryCache as Cache } from '../../../../cache';
 import { ApolloProvider } from '../../../context';
-import { itAsync, stripSymbols, MockedProvider, mockSingleLink } from '../../../../testing';
+import { itAsync, stripSymbols, MockedProvider, mockSingleLink, withErrorSpy } from '../../../../testing';
 import { Query } from '../../Query';
 
 const allPeopleQuery: DocumentNode = gql`
@@ -773,12 +773,8 @@ describe('Query component', () => {
 
         componentDidMount() {
           setTimeout(() => {
-            this.setState({
-              variables: {
-                first: 2,
-              },
-            });
-          });
+            this.setState({ variables: { first: 2 } });
+          }, 10);
         }
 
         onCompleted(data: Data | {}) {
@@ -1122,98 +1118,6 @@ describe('Query component', () => {
       return wait(() => expect(count).toBe(2)).then(resolve, reject);
     });
 
-    itAsync('use client from props or context', (resolve, reject) => {
-      jest.useFakeTimers();
-
-      function newClient(name: string) {
-        const link = mockSingleLink({
-          request: { query: allPeopleQuery },
-          result: { data: { allPeople: { people: [{ name }] } } },
-        });
-
-        return new ApolloClient({
-          link,
-          cache: new Cache({ addTypename: false }),
-          name,
-        });
-      }
-
-      const skywalker = newClient('Luke Skywalker');
-      const ackbar = newClient('Admiral Ackbar');
-      const solo = newClient('Han Solo');
-
-      const propsChanges = [
-        {
-          propsClient: null,
-          contextClient: ackbar,
-          renderedName: (name: string) =>
-            expect(name).toEqual('Admiral Ackbar'),
-        },
-        {
-          propsClient: null,
-          contextClient: skywalker,
-          renderedName: (name: string) =>
-            expect(name).toEqual('Luke Skywalker'),
-        },
-        {
-          propsClient: solo,
-          contextClient: skywalker,
-          renderedName: (name: string) => expect(name).toEqual('Han Solo'),
-        },
-        {
-          propsClient: null,
-          contextClient: ackbar,
-          renderedName: (name: string) =>
-            expect(name).toEqual('Admiral Ackbar'),
-        },
-        {
-          propsClient: skywalker,
-          contextClient: null,
-          renderedName: (name: string) =>
-            expect(name).toEqual('Luke Skywalker'),
-        },
-      ];
-
-      class Component extends React.Component<any, any> {
-        render() {
-          if (Object.keys(this.props).length === 0) {
-            return null;
-          }
-
-          const query = (
-            <Query query={allPeopleQuery} client={this.props.propsClient}>
-              {(result: any) => {
-                if (result.data && result.data.allPeople) {
-                  this.props.renderedName(result.data.allPeople.people[0].name);
-                }
-
-                return null;
-              }}
-            </Query>
-          );
-
-          if (this.props.contextClient) {
-            return (
-              <ApolloProvider client={this.props.contextClient}>
-                {query}
-              </ApolloProvider>
-            );
-          }
-
-          return query;
-        }
-      }
-
-      const { rerender } = render(<Component />);
-
-      propsChanges.forEach((props) => {
-        rerender(<Component {...props} />);
-        jest.runAllTimers();
-      });
-
-      return wait().then(resolve, reject);
-    });
-
     itAsync('with data while loading', (resolve, reject) => {
       const query = gql`
         query people($first: Int) {
@@ -1255,12 +1159,8 @@ describe('Query component', () => {
 
         componentDidMount() {
           setTimeout(() => {
-            this.setState({
-              variables: {
-                first: 2,
-              },
-            });
-          }, 50);
+            this.setState({ variables: { first: 2 } });
+          }, 10);
         }
 
         render() {
@@ -1575,8 +1475,7 @@ describe('Query component', () => {
   });
 
   itAsync(
-    'should not persist previous result errors when a subsequent valid ' +
-      'result is received',
+    'should not persist previous result errors when a subsequent valid result is received',
     (resolve, reject) => {
       const query: DocumentNode = gql`
         query somethingelse($variable: Boolean) {
@@ -1735,7 +1634,9 @@ describe('Query component', () => {
       };
 
       componentDidMount() {
-        setTimeout(() => this.setState({ variables: { first: 2 } }));
+        setTimeout(() => {
+          this.setState({ variables: { first: 2 } });
+        }, 10);
       }
 
       onCompleted() {
@@ -1853,7 +1754,7 @@ describe('Query component', () => {
       console.warn = origConsoleWarn;
     });
 
-    itAsync(
+    withErrorSpy(itAsync,
       'should attempt a refetch when the query result was marked as being ' +
         'partial, the returned data was reset to an empty Object by the ' +
         'Apollo Client QueryManager (due to a cache miss), and the ' +

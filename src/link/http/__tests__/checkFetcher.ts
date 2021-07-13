@@ -1,15 +1,8 @@
 import { checkFetcher } from '../checkFetcher';
+import { voidFetchDuringEachTest } from './helpers';
 
 describe('checkFetcher', () => {
-  let oldFetch: WindowOrWorkerGlobalScope['fetch'];
-  beforeEach(() => {
-    oldFetch = window.fetch;
-    delete window.fetch;
-  });
-
-  afterEach(() => {
-    window.fetch = oldFetch;
-  });
+  voidFetchDuringEachTest();
 
   it('throws if no fetch is present', () => {
     expect(() => checkFetcher(undefined)).toThrow(

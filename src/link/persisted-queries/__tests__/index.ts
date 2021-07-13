@@ -39,13 +39,12 @@ const errorResponse = JSON.stringify({ errors });
 const giveUpResponse = JSON.stringify({ errors: giveUpErrors });
 const multiResponse = JSON.stringify({ errors: multipleErrors });
 
-let hash: string;
-(async () => {
-  hash = await sha256(queryString);
-})();
-
 describe('happy path', () => {
-  beforeEach(fetch.mockReset);
+  let hash: string;
+  beforeEach(async () => {
+    fetch.mockReset();
+    hash = hash || await sha256(queryString);
+  });
 
   it('sends a sha256 hash of the query under extensions', done => {
     fetch.mockResponseOnce(response);
@@ -221,7 +220,11 @@ describe('happy path', () => {
 });
 
 describe('failure path', () => {
-  beforeEach(fetch.mockReset);
+  let hash: string;
+  beforeEach(async () => {
+    fetch.mockReset();
+    hash = hash || await sha256(queryString);
+  });
 
   it('correctly identifies the error shape from the server', done => {
     fetch.mockResponseOnce(errorResponse);
@@ -257,6 +260,85 @@ describe('failure path', () => {
       expect(
         JSON.parse(success!.body!.toString()).extensions.persistedQuery.sha256Hash,
       ).toBe(hash);
+      done();
+    }, done.fail);
+  });
+
+  it('sends POST for both requests without useGETForHashedQueries', done => {
+    fetch.mockResponseOnce(errorResponse);
+    fetch.mockResponseOnce(response);
+    const link = createPersistedQuery({ sha256 }).concat(
+      createHttpLink(),
+    );
+    execute(link, { query, variables }).subscribe(result => {
+      expect(result.data).toEqual(data);
+      const [, failure] = fetch.mock.calls[0];
+      expect(failure!.method).toBe('POST');
+      expect(JSON.parse(failure!.body!.toString())).toEqual({
+        operationName: 'Test',
+        variables,
+        extensions: {
+          persistedQuery: {
+            version: VERSION,
+            sha256Hash: hash,
+          },
+        },
+      });
+      const [, success] = fetch.mock.calls[1];
+      expect(success!.method).toBe('POST');
+      expect(JSON.parse(success!.body!.toString())).toEqual({
+        operationName: 'Test',
+        query: queryString,
+        variables,
+        extensions: {
+          persistedQuery: {
+            version: VERSION,
+            sha256Hash: hash,
+          },
+        },
+      });
+      done();
+    }, done.fail);
+  });
+
+  // https://github.com/apollographql/apollo-client/pull/7456
+  it('forces POST request when sending full query', done => {
+    fetch.mockResponseOnce(giveUpResponse);
+    fetch.mockResponseOnce(response);
+    const link = createPersistedQuery({
+      sha256,
+      disable({ operation }) {
+        operation.setContext({
+          fetchOptions: {
+            method: 'GET',
+          },
+        });
+        return true;
+      },
+    }).concat(
+      createHttpLink(),
+    );
+    execute(link, { query, variables }).subscribe(result => {
+      expect(result.data).toEqual(data);
+      const [, failure] = fetch.mock.calls[0];
+      expect(failure!.method).toBe('POST');
+      expect(JSON.parse(failure!.body!.toString())).toEqual({
+        operationName: 'Test',
+        variables,
+        extensions: {
+          persistedQuery: {
+            version: VERSION,
+            sha256Hash: hash,
+          },
+        },
+      });
+      const [, success] = fetch.mock.calls[1];
+      expect(success!.method).toBe('POST');
+      expect(JSON.parse(success!.body!.toString())).toEqual({
+        operationName: 'Test',
+        query: queryString,
+        variables,
+      });
       done();
     }, done.fail);
   });

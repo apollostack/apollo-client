@@ -1,5 +1,6 @@
 import gql from 'graphql-tag';
 import { GraphQLError } from 'graphql';
+import { TypedDocumentNode } from '@graphql-typed-document-node/core';
 
 import { ApolloClient, NetworkStatus } from '../../core';
 import { ObservableQuery } from '../ObservableQuery';
@@ -39,7 +40,11 @@ export const mockFetchQuery = (queryManager: QueryManager<any>) => {
 
 describe('ObservableQuery', () => {
   // Standard data for all these tests
-  const query = gql`
+  const query: TypedDocumentNode<{
+    people_one: {
+      name: string;
+    };
+  }> = gql`
     query query($id: ID!) {
       people_one(id: $id) {
         name
@@ -973,22 +978,43 @@ describe('ObservableQuery', () => {
 
       const mocks = mockFetchQuery(queryManager);
 
-      subscribeAndCount(reject, observable, handleCount => {
-        if (handleCount === 1) {
+      subscribeAndCount(reject, observable, (count, result) => {
+        if (count === 1) {
+          expect(result).toEqual({
+            loading: false,
+            networkStatus: NetworkStatus.ready,
+            data: dataOne,
+          });
+
           observable.refetch(differentVariables);
-        } else if (handleCount === 2) {
+
+        } else if (count === 2) {
+          expect(result).toEqual({
+            loading: false,
+            networkStatus: NetworkStatus.ready,
+            data: dataTwo,
+          });
+
           const fqbpCalls = mocks.fetchQueryByPolicy.mock.calls;
           expect(fqbpCalls.length).toBe(2);
+          expect(fqbpCalls[0][1].fetchPolicy).toEqual('cache-first');
           expect(fqbpCalls[1][1].fetchPolicy).toEqual('network-only');
+
+          const fqoCalls = mocks.fetchQueryObservable.mock.calls;
+          expect(fqoCalls.length).toBe(2);
+          expect(fqoCalls[0][1].fetchPolicy).toEqual('cache-first');
+          expect(fqoCalls[1][1].fetchPolicy).toEqual('network-only');
+
           // Although the options.fetchPolicy we passed just now to
           // fetchQueryByPolicy should have been network-only,
           // observable.options.fetchPolicy should now be updated to
           // cache-first, thanks to options.nextFetchPolicy.
           expect(observable.options.fetchPolicy).toBe('cache-first');
-          const fqoCalls = mocks.fetchQueryObservable.mock.calls;
-          expect(fqoCalls.length).toBe(2);
-          expect(fqoCalls[1][1].fetchPolicy).toEqual('cache-first');
-          resolve();
+
+          // Give the test time to fail if more results are delivered.
+          setTimeout(resolve, 50);
+        } else {
+          reject(new Error(`too many results (${count}, ${result})`));
         }
       });
     });
@@ -1108,6 +1134,118 @@ describe('ObservableQuery', () => {
           expect(result.data).toEqual(data);
           expect(result.loading).toBe(false);
           resolve();
+        }
+      });
+    });
+
+    itAsync('resets fetchPolicy when variables change when using nextFetchPolicy', (resolve, reject) => {
+      // This query and variables are copied from react-apollo
+      const queryWithVars = gql`
+        query people($first: Int) {
+          allPeople(first: $first) {
+            people {
+              name
+            }
+          }
+        }
+      `;
+
+      const data = { allPeople: { people: [{ name: 'Luke Skywalker' }] } };
+      const variables1 = { first: 0 };
+
+      const data2 = { allPeople: { people: [{ name: 'Leia Skywalker' }] } };
+      const variables2 = { first: 1 };
+
+      const queryManager = mockQueryManager(
+        reject,
+        {
+          request: {
+            query: queryWithVars,
+            variables: variables1,
+          },
+          result: { data },
+        },
+        {
+          request: {
+            query: queryWithVars,
+            variables: variables2,
+          },
+          result: { data: data2 },
+        },
+        {
+          request: {
+            query: queryWithVars,
+            variables: variables1,
+          },
+          result: { data },
+        },
+        {
+          request: {
+            query: queryWithVars,
+            variables: variables2,
+          },
+          result: { data: data2 },
+        },
+      );
+
+      const observable = queryManager.watchQuery({
+        query: queryWithVars,
+        variables: variables1,
+        fetchPolicy: 'cache-and-network',
+        nextFetchPolicy: 'cache-first',
+        notifyOnNetworkStatusChange: true,
+      });
+
+      expect(observable.options.fetchPolicy).toBe('cache-and-network');
+      expect(observable["initialFetchPolicy"]).toBe('cache-and-network');
+
+      subscribeAndCount(reject, observable, (handleCount, result) => {
+        expect(result.error).toBeUndefined();
+
+        if (handleCount === 1) {
+          expect(result.data).toEqual(data);
+          expect(result.loading).toBe(false);
+          expect(observable.options.fetchPolicy).toBe('cache-first');
+          observable.refetch(variables2);
+        } else if (handleCount === 2) {
+          expect(result.loading).toBe(true);
+          expect(result.networkStatus).toBe(NetworkStatus.setVariables);
+          expect(observable.options.fetchPolicy).toBe('cache-first');
+        } else if (handleCount === 3) {
+          expect(result.data).toEqual(data2);
+          expect(result.loading).toBe(false);
+          expect(observable.options.fetchPolicy).toBe('cache-first');
+          observable.setOptions({
+            variables: variables1,
+          }).then(result => {
+            expect(result.data).toEqual(data);
+          }).catch(reject);
+          expect(observable.options.fetchPolicy).toBe('cache-and-network');
+        } else if (handleCount === 4) {
+          expect(result.loading).toBe(true);
+          expect(result.networkStatus).toBe(NetworkStatus.setVariables);
+          expect(observable.options.fetchPolicy).toBe('cache-first');
+        } else if (handleCount === 5) {
+          expect(result.data).toEqual(data);
+          expect(result.loading).toBe(false);
+          expect(observable.options.fetchPolicy).toBe('cache-first');
+          observable.reobserve({
+            variables: variables2,
+          }).then(result => {
+            expect(result.data).toEqual(data2);
+          }).catch(reject);
+          expect(observable.options.fetchPolicy).toBe('cache-and-network');
+        } else if (handleCount === 6) {
+          expect(result.data).toEqual(data2);
+          expect(result.loading).toBe(true);
+          expect(observable.options.fetchPolicy).toBe('cache-first');
+        } else if (handleCount === 7) {
+          expect(result.data).toEqual(data2);
+          expect(result.loading).toBe(false);
+          expect(observable.options.fetchPolicy).toBe('cache-first');
+          setTimeout(resolve, 10);
+        } else {
+          reject(`too many renders (${handleCount})`);
         }
       });
     });
@@ -1643,15 +1781,16 @@ describe('ObservableQuery', () => {
         });
 
         expect(observable.getCurrentResult()).toEqual({
-          data: void 0,
+          data: dataOne,
           loading: true,
-          networkStatus: 1,
+          networkStatus: NetworkStatus.loading,
         });
 
         subscribeAndCount(reject, observable, (handleCount, subResult) => {
           if (handleCount === 1) {
             expect(subResult).toEqual({
               loading: true,
+              data: dataOne,
               networkStatus: NetworkStatus.loading,
             });
           } else if (handleCount === 2) {
@@ -1838,7 +1977,10 @@ describe('ObservableQuery', () => {
                   value: 'oyez',
                 };
               }
-              client.writeQuery({ query, data });
+              client.writeQuery({
+                query: queryOptions.query,
+                data,
+              });
             },
             error(err) {
               expect(err.message).toMatch(/No more mocked responses/);
@@ -1915,6 +2057,79 @@ describe('ObservableQuery', () => {
           resolve();
         }
       });
+    });
+  });
+
+  itAsync("QueryInfo does not notify for !== but deep-equal results", (resolve, reject) => {
+    const queryManager = mockQueryManager(reject, {
+      request: { query, variables },
+      result: { data: dataOne },
+    });
+
+    const observable = queryManager.watchQuery({
+      query,
+      variables,
+      // If we let the cache return canonical results, it will be harder to
+      // write this test, because any two results that are deeply equal will
+      // also be !==, making the choice of equality test in queryInfo.setDiff
+      // less visible/important.
+      canonizeResults: false,
+    });
+
+    const queryInfo = observable["queryInfo"];
+    const cache = queryInfo["cache"];
+    const setDiffSpy = jest.spyOn(queryInfo, "setDiff");
+    const notifySpy = jest.spyOn(queryInfo, "notify");
+
+    subscribeAndCount(reject, observable, (count, result) => {
+      if (count === 1) {
+        expect(result).toEqual({
+          loading: false,
+          networkStatus: NetworkStatus.ready,
+          data: dataOne,
+        });
+
+        let invalidateCount = 0;
+        let onWatchUpdatedCount = 0;
+
+        cache.batch({
+          optimistic: true,
+          update(cache) {
+            cache.modify({
+              fields: {
+                people_one(value, { INVALIDATE }) {
+                  expect(value).toEqual(dataOne.people_one);
+                  ++invalidateCount;
+                  return INVALIDATE;
+                },
+              },
+            });
+          },
+          // Verify that the cache.modify operation did trigger a cache broadcast.
+          onWatchUpdated(watch, diff) {
+            expect(watch.watcher).toBe(queryInfo);
+            expect(diff).toEqual({
+              complete: true,
+              result: {
+                people_one: {
+                  name: "Luke Skywalker",
+                },
+              },
+            });
+            ++onWatchUpdatedCount;
+          },
+        });
+
+        new Promise(resolve => setTimeout(resolve, 100)).then(() => {
+          expect(setDiffSpy).toHaveBeenCalledTimes(1);
+          expect(notifySpy).not.toHaveBeenCalled();
+          expect(invalidateCount).toBe(1);
+          expect(onWatchUpdatedCount).toBe(1);
+          queryManager.stop();
+        }).then(resolve, reject);
+      } else {
+        reject("too many results");
+      }
     });
   });
 

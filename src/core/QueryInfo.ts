@@ -25,6 +25,12 @@ export type QueryStoreValue = Pick<QueryInfo,
   | "graphQLErrors"
   >;
 
+export const enum CacheWriteBehavior {
+  FORBID,
+  OVERWRITE,
+  MERGE,
+};
+
 const destructiveMethodCounts = new (
   canUseWeakMap ? WeakMap : Map
 )<ApolloCache<any>, number>();
@@ -111,7 +117,7 @@ export class QueryInfo {
     }
 
     if (!equal(query.variables, this.variables)) {
-      this.diff = null;
+      this.lastDiff = void 0;
     }
 
     Object.assign(this, {
@@ -137,34 +143,63 @@ export class QueryInfo {
 
   private notifyTimeout?: ReturnType<typeof setTimeout>;
 
-  private diff: Cache.DiffResult<any> | null = null;
-
   reset() {
     cancelNotifyTimeout(this);
-    this.diff = null;
+    this.lastDiff = void 0;
     this.dirty = false;
   }
 
   getDiff(variables = this.variables): Cache.DiffResult<any> {
-    if (this.diff && equal(variables, this.variables)) {
-      return this.diff;
+    const options = this.getDiffOptions(variables);
+
+    if (this.lastDiff && equal(options, this.lastDiff.options)) {
+      return this.lastDiff.diff;
     }
 
     this.updateWatch(this.variables = variables);
 
-    return this.diff = this.cache.diff({
+    const oq = this.observableQuery;
+    if (oq && oq.options.fetchPolicy === "no-cache") {
+      return { complete: false };
+    }
+
+    const diff = this.cache.diff(options);
+    this.updateLastDiff(diff, options);
+    return diff;
+  }
+
+  private lastDiff?: {
+    diff: Cache.DiffResult<any>,
+    options: Cache.DiffOptions,
+  };
+
+  private updateLastDiff(
+    diff: Cache.DiffResult<any> | null,
+    options?: Cache.DiffOptions,
+  ) {
+    this.lastDiff = diff ? {
+      diff,
+      options: options || this.getDiffOptions(),
+    } : void 0;
+  }
+
+  private getDiffOptions(variables = this.variables): Cache.DiffOptions {
+    const oq = this.observableQuery;
+    return {
       query: this.document!,
       variables,
       returnPartialData: true,
       optimistic: true,
-    });
+      canonizeResults: !oq || oq.options.canonizeResults !== false,
+    };
   }
 
   setDiff(diff: Cache.DiffResult<any> | null) {
-    const oldDiff = this.diff;
-    this.diff = diff;
+    const oldDiff = this.lastDiff && this.lastDiff.diff;
+    this.updateLastDiff(diff);
     if (!this.dirty &&
-        (diff && diff.result) !== (oldDiff && oldDiff.result)) {
+        !equal(oldDiff && oldDiff.result,
+               diff && diff.result)) {
       this.dirty = true;
       if (!this.notifyTimeout) {
         this.notifyTimeout = setTimeout(() => this.notify(), 0);
@@ -236,11 +271,11 @@ export class QueryInfo {
 
       // Cancel the pending notify timeout
       this.reset();
-      
+
       this.cancel();
       // Revert back to the no-op version of cancel inherited from
       // QueryInfo.prototype.
-      delete this.cancel;
+      this.cancel = QueryInfo.prototype.cancel;
 
       this.subscriptions.forEach(sub => sub.unsubscribe());
 
@@ -253,23 +288,27 @@ export class QueryInfo {
   // updateWatch method.
   private cancel() {}
 
-  private lastWatch?: Cache.WatchOptions;
+  private lastWatch?: Cache.WatchOptions<QueryInfo>;
 
   private updateWatch(variables = this.variables) {
     const oq = this.observableQuery;
     if (oq && oq.options.fetchPolicy === "no-cache") {
       return;
     }
+
+    const watchOptions: Cache.WatchOptions<QueryInfo> = {
+      // Although this.getDiffOptions returns Cache.DiffOptions instead of
+      // Cache.WatchOptions, all the overlapping options should be the same, so
+      // we can reuse getDiffOptions here, for consistency.
+      ...this.getDiffOptions(variables),
+      watcher: this,
+      callback: diff => this.setDiff(diff),
+    };
+
     if (!this.lastWatch ||
-        this.lastWatch.query !== this.document ||
-        !equal(variables, this.lastWatch.variables)) {
+        !equal(watchOptions, this.lastWatch)) {
       this.cancel();
-      this.cancel = this.cache.watch(this.lastWatch = {
-        query: this.document!,
-        variables,
-        optimistic: true,
-        callback: diff => this.setDiff(diff),
-      });
+      this.cancel = this.cache.watch(this.lastWatch = watchOptions);
     }
   }
 
@@ -278,6 +317,10 @@ export class QueryInfo {
     variables: WatchQueryOptions["variables"];
     dmCount: number | undefined;
   };
+
+  public resetLastWrite() {
+    this.lastWrite = void 0;
+  }
 
   private shouldWrite(
     result: FetchResult<any>,
@@ -301,7 +344,7 @@ export class QueryInfo {
       | "variables"
       | "fetchPolicy"
       | "errorPolicy">,
-    allowCacheWrite: boolean,
+    cacheWriteBehavior: CacheWriteBehavior,
   ) {
     this.graphQLErrors = isNonEmptyArray(result.errors) ? result.errors : [];
 
@@ -310,9 +353,12 @@ export class QueryInfo {
     this.reset();
 
     if (options.fetchPolicy === 'no-cache') {
-      this.diff = { result: result.data, complete: true };
+      this.updateLastDiff(
+        { result: result.data, complete: true },
+        this.getDiffOptions(options.variables),
+      );
 
-    } else if (!this.stopped && allowCacheWrite) {
+    } else if (cacheWriteBehavior !== CacheWriteBehavior.FORBID) {
       if (shouldWriteResult(result, options.errorPolicy)) {
         // Using a transaction here so we have a chance to read the result
         // back from the cache before the watch callback fires as a result
@@ -324,6 +370,7 @@ export class QueryInfo {
               query: this.document!,
               data: result.data as T,
               variables: options.variables,
+              overwrite: cacheWriteBehavior === CacheWriteBehavior.OVERWRITE,
             });
 
             this.lastWrite = {
@@ -364,22 +411,19 @@ export class QueryInfo {
             // mitigate the clobbering somehow, but that would make this
             // particular cache write even less important, and thus
             // skipping it would be even safer than it is today.
-            if (this.diff && this.diff.complete) {
+            if (this.lastDiff &&
+                this.lastDiff.diff.complete) {
               // Reuse data from the last good (complete) diff that we
               // received, when possible.
-              result.data = this.diff.result;
+              result.data = this.lastDiff.diff.result;
               return;
             }
             // If the previous this.diff was incomplete, fall through to
             // re-reading the latest data with cache.diff, below.
           }
 
-          const diff = cache.diff<T>({
-            query: this.document!,
-            variables: options.variables,
-            returnPartialData: true,
-            optimistic: true,
-          });
+          const diffOptions = this.getDiffOptions(options.variables);
+          const diff = cache.diff<T>(diffOptions);
 
           // In case the QueryManager stops this QueryInfo before its
           // results are delivered, it's important to avoid restarting the
@@ -395,12 +439,11 @@ export class QueryInfo {
           // result from the cache, rather than the raw network result.
           // Set without setDiff to avoid triggering a notify call, since
           // we have other ways of notifying for this result.
-          this.diff = diff;
+          this.updateLastDiff(diff, diffOptions);
           if (diff.complete) {
             result.data = diff.result;
           }
         });
-
       } else {
         this.lastWrite = void 0;
       }

@@ -589,6 +589,7 @@ describe('[queries] skip', () => {
 
     const data = { allPeople: { people: [{ name: 'Luke Skywalker' }] } };
     const nextData = { allPeople: { people: [{ name: 'Anakin Skywalker' }] } };
+    const finalData = { allPeople: { people: [{ name: 'Darth Vader' }] } };
 
     let ranQuery = 0;
 
@@ -604,6 +605,14 @@ describe('[queries] skip', () => {
         {
           request: { query },
           result: { data: nextData },
+        },
+        {
+          request: { query },
+          result: { data: nextData },
+        },
+        {
+          request: { query },
+          result: { data: finalData },
         },
       )
     );
@@ -625,10 +634,12 @@ describe('[queries] skip', () => {
     })(
       class extends React.Component<any> {
         render() {
+          expect(this.props.data?.error).toBeUndefined();
+
           switch (++count) {
             case 1:
               expect(this.props.data.loading).toBe(true);
-              expect(ranQuery).toBe(1);
+              expect(ranQuery).toBe(0);
               break;
             case 2:
               // The first batch of data is fetched over the network, and
@@ -639,40 +650,52 @@ describe('[queries] skip', () => {
               expect(ranQuery).toBe(1);
               setTimeout(() => {
                 this.props.setSkip(true);
-              });
+              }, 10);
               break;
             case 3:
               // This render is triggered after setting skip to true. Now
               // let's set skip to false to re-trigger the query.
+              expect(this.props.skip).toBe(true);
               expect(this.props.data).toBeUndefined();
               expect(ranQuery).toBe(1);
               setTimeout(() => {
                 this.props.setSkip(false);
-              });
+              }, 10);
               break;
             case 4:
+              expect(this.props.skip).toBe(false);
+              expect(this.props.data!.loading).toBe(true);
+              expect(this.props.data.allPeople).toEqual(data.allPeople);
+              expect(ranQuery).toBe(2);
+              break;
+            case 5:
+              expect(this.props.skip).toBe(false);
+              expect(this.props.data!.loading).toBe(false);
+              expect(this.props.data.allPeople).toEqual(nextData.allPeople);
+              expect(ranQuery).toBe(3);
               // Since the `nextFetchPolicy` was set to `cache-first`, our
               // query isn't loading as it's able to find the result of the
               // query directly from the cache. Let's trigger a refetch
               // to manually load the next batch of data.
-              expect(this.props.data!.loading).toBe(false);
-              expect(this.props.data.allPeople).toEqual(data.allPeople);
-              expect(ranQuery).toBe(1);
               setTimeout(() => {
                 this.props.data.refetch();
-              });
-              break;
-            case 5:
-              expect(this.props.data!.loading).toBe(true);
-              expect(ranQuery).toBe(2);
+              }, 10);
               break;
             case 6:
-              // The next batch of data has loaded.
-              expect(this.props.data!.loading).toBe(false);
+              expect(this.props.skip).toBe(false);
+              expect(this.props.data!.loading).toBe(true);
               expect(this.props.data.allPeople).toEqual(nextData.allPeople);
-              expect(ranQuery).toBe(2);
+              expect(ranQuery).toBe(4);
+              break;
+            case 7:
+              // The next batch of data has loaded.
+              expect(this.props.skip).toBe(false);
+              expect(this.props.data!.loading).toBe(false);
+              expect(this.props.data.allPeople).toEqual(finalData.allPeople);
+              expect(ranQuery).toBe(4);
               break;
             default:
+              throw new Error(`too many renders (${count})`);
           }
           return null;
         }
@@ -698,7 +721,7 @@ describe('[queries] skip', () => {
     );
 
     await wait(() => {
-      expect(count).toEqual(6);
+      expect(count).toEqual(7);
     });
   });
 

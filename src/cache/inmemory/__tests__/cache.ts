@@ -2,9 +2,15 @@ import gql, { disableFragmentWarnings } from 'graphql-tag';
 
 import { stripSymbols } from '../../../utilities/testing/stripSymbols';
 import { cloneDeep } from '../../../utilities/common/cloneDeep';
-import { makeReference, Reference, makeVar, TypedDocumentNode, isReference } from '../../../core';
+import { makeReference, Reference, makeVar, TypedDocumentNode, isReference, DocumentNode } from '../../../core';
 import { Cache } from '../../../cache';
 import { InMemoryCache, InMemoryCacheConfig } from '../inMemoryCache';
+
+jest.mock('optimism');
+import { wrap } from 'optimism';
+import { StoreReader } from '../readFromStore';
+import { StoreWriter } from '../writeToStore';
+import { ObjectCanon } from '../object-canon';
 
 disableFragmentWarnings();
 
@@ -1327,6 +1333,366 @@ describe('Cache', () => {
     );
   });
 
+  describe('cache.restore', () => {
+    it('replaces cache.{store{Reader,Writer},maybeBroadcastWatch}', () => {
+      const cache = new InMemoryCache;
+      const query = gql`query { a b c }`;
+
+      const originalReader = cache["storeReader"];
+      expect(originalReader).toBeInstanceOf(StoreReader);
+
+      const originalWriter = cache["storeWriter"];
+      expect(originalWriter).toBeInstanceOf(StoreWriter);
+
+      const originalMBW = cache["maybeBroadcastWatch"];
+      expect(typeof originalMBW).toBe("function");
+
+      const originalCanon = originalReader.canon;
+      expect(originalCanon).toBeInstanceOf(ObjectCanon);
+
+      cache.writeQuery({
+        query,
+        data: {
+          a: "ay",
+          b: "bee",
+          c: "see",
+        },
+      });
+
+      const snapshot = cache.extract();
+      expect(snapshot).toMatchSnapshot();
+
+      cache.restore({});
+      expect(cache.extract()).toEqual({});
+      expect(cache.readQuery({ query })).toBe(null);
+
+      cache.restore(snapshot);
+      expect(cache.extract()).toEqual(snapshot);
+      expect(cache.readQuery({ query })).toEqual({
+        a: "ay",
+        b: "bee",
+        c: "see",
+      });
+
+      expect(originalReader).not.toBe(cache["storeReader"]);
+      expect(originalWriter).not.toBe(cache["storeWriter"]);
+      expect(originalMBW).not.toBe(cache["maybeBroadcastWatch"]);
+      // The cache.storeReader.canon is preserved by default, but can be dropped
+      // by passing resetResultIdentities:true to cache.gc.
+      expect(originalCanon).toBe(cache["storeReader"].canon);
+    });
+  });
+
+  describe('cache.batch', () => {
+    const last = <E>(array: E[]) => array[array.length - 1];
+
+    function watch(cache: InMemoryCache, query: DocumentNode) {
+      const options: Cache.WatchOptions = {
+        query,
+        optimistic: true,
+        immediate: true,
+        callback(diff) {
+          diffs.push(diff);
+        },
+      };
+      const diffs: Cache.DiffResult<any>[] = [];
+      const cancel = cache.watch(options);
+      diffs.shift(); // Discard the immediate diff
+      return { diffs, watch: options, cancel };
+    }
+
+    it('calls onWatchUpdated for each invalidated watch', () => {
+      const cache = new InMemoryCache;
+
+      const aQuery = gql`query { a }`;
+      const abQuery = gql`query { a b }`;
+      const bQuery = gql`query { b }`;
+
+      const aInfo = watch(cache, aQuery);
+      const abInfo = watch(cache, abQuery);
+      const bInfo = watch(cache, bQuery);
+
+      const dirtied = new Map<Cache.WatchOptions, Cache.DiffResult<any>>();
+
+      cache.batch({
+        update(cache) {
+          cache.writeQuery({
+            query: aQuery,
+            data: {
+              a: "ay",
+            },
+          });
+        },
+        optimistic: true,
+        onWatchUpdated(w, diff) {
+          dirtied.set(w, diff);
+        },
+      });
+
+      expect(dirtied.size).toBe(2);
+      expect(dirtied.has(aInfo.watch)).toBe(true);
+      expect(dirtied.has(abInfo.watch)).toBe(true);
+      expect(dirtied.has(bInfo.watch)).toBe(false);
+
+      expect(aInfo.diffs.length).toBe(1);
+      expect(last(aInfo.diffs)).toEqual({
+        complete: true,
+        result: {
+          a: "ay",
+        },
+      });
+
+      expect(abInfo.diffs.length).toBe(1);
+      expect(last(abInfo.diffs)).toEqual({
+        complete: false,
+        missing: expect.any(Array),
+        result: {
+          a: "ay",
+        },
+      });
+
+      expect(bInfo.diffs.length).toBe(0);
+
+      dirtied.clear();
+
+      cache.batch({
+        update(cache) {
+          cache.writeQuery({
+            query: bQuery,
+            data: {
+              b: "bee",
+            },
+          });
+        },
+        optimistic: true,
+        onWatchUpdated(w, diff) {
+          dirtied.set(w, diff);
+        },
+      });
+
+      expect(dirtied.size).toBe(2);
+      expect(dirtied.has(aInfo.watch)).toBe(false);
+      expect(dirtied.has(abInfo.watch)).toBe(true);
+      expect(dirtied.has(bInfo.watch)).toBe(true);
+
+      expect(aInfo.diffs.length).toBe(1);
+      expect(last(aInfo.diffs)).toEqual({
+        complete: true,
+        result: {
+          a: "ay",
+        },
+      });
+
+      expect(abInfo.diffs.length).toBe(2);
+      expect(last(abInfo.diffs)).toEqual({
+        complete: true,
+        result: {
+          a: "ay",
+          b: "bee",
+        },
+      });
+
+      expect(bInfo.diffs.length).toBe(1);
+      expect(last(bInfo.diffs)).toEqual({
+        complete: true,
+        result: {
+          b: "bee",
+        },
+      });
+
+      aInfo.cancel();
+      abInfo.cancel();
+      bInfo.cancel();
+    });
+
+    it('works with cache.modify and INVALIDATE', () => {
+      const cache = new InMemoryCache;
+
+      const aQuery = gql`query { a }`;
+      const abQuery = gql`query { a b }`;
+      const bQuery = gql`query { b }`;
+
+      cache.writeQuery({
+        query: abQuery,
+        data: {
+          a: "ay",
+          b: "bee",
+        },
+      });
+
+      const aInfo = watch(cache, aQuery);
+      const abInfo = watch(cache, abQuery);
+      const bInfo = watch(cache, bQuery);
+
+      const dirtied = new Map<Cache.WatchOptions, Cache.DiffResult<any>>();
+
+      cache.batch({
+        update(cache) {
+          cache.modify({
+            fields: {
+              a(value, { INVALIDATE }) {
+                expect(value).toBe("ay");
+                return INVALIDATE;
+              },
+            },
+          });
+        },
+        optimistic: true,
+        onWatchUpdated(w, diff) {
+          dirtied.set(w, diff);
+        },
+      });
+
+      expect(dirtied.size).toBe(2);
+      expect(dirtied.has(aInfo.watch)).toBe(true);
+      expect(dirtied.has(abInfo.watch)).toBe(true);
+      expect(dirtied.has(bInfo.watch)).toBe(false);
+
+      // No new diffs should have been generated, since we only invalidated
+      // fields using cache.modify, and did not change any field values.
+      expect(aInfo.diffs).toEqual([]);
+      expect(abInfo.diffs).toEqual([]);
+      expect(bInfo.diffs).toEqual([]);
+
+      aInfo.cancel();
+      abInfo.cancel();
+      bInfo.cancel();
+    });
+
+    it('does not pass previously invalidated queries to onWatchUpdated', () => {
+      const cache = new InMemoryCache;
+
+      const aQuery = gql`query { a }`;
+      const abQuery = gql`query { a b }`;
+      const bQuery = gql`query { b }`;
+
+      cache.writeQuery({
+        query: abQuery,
+        data: {
+          a: "ay",
+          b: "bee",
+        },
+      });
+
+      const aInfo = watch(cache, aQuery);
+      const abInfo = watch(cache, abQuery);
+      const bInfo = watch(cache, bQuery);
+
+      cache.writeQuery({
+        query: bQuery,
+        // Writing this data with broadcast:false queues this update for
+        // the next broadcast, whenever it happens. If that next broadcast
+        // is the one triggered by cache.batch, the bQuery broadcast could
+        // be accidentally intercepted by onWatchUpdated, even though the
+        // transaction does not touch the Query.b field. To solve this
+        // problem, the batch method calls cache.broadcastWatches() before
+        // the transaction, when options.onWatchUpdated is provided.
+        broadcast: false,
+        data: {
+          b: "beeeee",
+        },
+      });
+
+      // No diffs reported so far, thanks to broadcast: false.
+      expect(aInfo.diffs).toEqual([]);
+      expect(abInfo.diffs).toEqual([]);
+      expect(bInfo.diffs).toEqual([]);
+
+      const dirtied = new Map<Cache.WatchOptions, Cache.DiffResult<any>>();
+
+      cache.batch({
+        update(cache) {
+          cache.modify({
+            fields: {
+              a(value) {
+                expect(value).toBe("ay");
+                return "ayyyy";
+              },
+            },
+          });
+        },
+        optimistic: true,
+        onWatchUpdated(watch, diff) {
+          dirtied.set(watch, diff);
+        },
+      });
+
+      expect(dirtied.size).toBe(2);
+      expect(dirtied.has(aInfo.watch)).toBe(true);
+      expect(dirtied.has(abInfo.watch)).toBe(true);
+      expect(dirtied.has(bInfo.watch)).toBe(false);
+
+      expect(aInfo.diffs).toEqual([
+        // This diff resulted from the cache.modify call in the cache.batch
+        // update function.
+        {
+          complete: true,
+          result: {
+            a: "ayyyy",
+          },
+        }
+      ]);
+
+      expect(abInfo.diffs).toEqual([
+        // This diff resulted from the cache.modify call in the cache.batch
+        // update function.
+        {
+          complete: true,
+          result: {
+            a: "ayyyy",
+            b: "beeeee",
+          },
+        },
+      ]);
+
+      // No diffs so far for bQuery.
+      expect(bInfo.diffs).toEqual([]);
+
+      // Trigger broadcast of watchers that were dirty before the cache.batch
+      // transaction.
+      cache["broadcastWatches"]();
+
+      expect(aInfo.diffs).toEqual([
+        // Same array of diffs as before.
+        {
+          complete: true,
+          result: {
+            a: "ayyyy",
+          },
+        }
+      ]);
+
+      expect(abInfo.diffs).toEqual([
+        // The abQuery watcher was dirty before the cache.batch transaction,
+        // but it got picked up in the post-transaction broadcast, which is why
+        // we do not see another (duplicate) diff here.
+        {
+          complete: true,
+          result: {
+            a: "ayyyy",
+            b: "beeeee",
+          },
+        },
+      ]);
+
+      expect(bInfo.diffs).toEqual([
+        // This diff is caused by the data written by cache.writeQuery before
+        // the cache.batch transaction, but gets broadcast only after the batch
+        // transaction, by cache["broadcastWatches"]() above.
+        {
+          complete: true,
+          result: {
+            b: "beeeee",
+          },
+        },
+      ]);
+
+      aInfo.cancel();
+      abInfo.cancel();
+      bInfo.cancel();
+    });
+  });
+
   describe('performTransaction', () => {
     itWithInitialData('will not broadcast mid-transaction', [{}], cache => {
       let numBroadcasts = 0;
@@ -1373,7 +1739,7 @@ describe('Cache', () => {
     });
   });
 
-  describe('performOptimisticTransaction', () => {
+  describe('recordOptimisticTransaction', () => {
     itWithInitialData('will only broadcast once', [{}], cache => {
       let numBroadcasts = 0;
 
@@ -1420,6 +1786,36 @@ describe('Cache', () => {
 
       expect(numBroadcasts).toEqual(1);
     });
+  });
+});
+
+describe('resultCacheMaxSize', () => {
+  let wrapSpy: jest.Mock = wrap as jest.Mock;
+  beforeEach(() => {
+    wrapSpy.mockClear();
+  });
+
+  it("does not set max size on caches if resultCacheMaxSize is not configured", () => {
+    new InMemoryCache();
+    expect(wrapSpy).toHaveBeenCalled();
+
+    // The first wrap call is for getFragmentQueryDocument which intentionally
+    // does not have a max set since it's not expected to grow.
+    wrapSpy.mock.calls.splice(1).forEach(([, { max }]) => {
+      expect(max).toBeUndefined();
+    })
+  });
+
+  it("configures max size on caches when resultCacheMaxSize is set", () => {
+    const resultCacheMaxSize = 12345;
+    new InMemoryCache({ resultCacheMaxSize });
+    expect(wrapSpy).toHaveBeenCalled();
+
+    // The first wrap call is for getFragmentQueryDocument which intentionally
+    // does not have a max set since it's not expected to grow.
+    wrapSpy.mock.calls.splice(1).forEach(([, { max }]) => {
+      expect(max).toBe(resultCacheMaxSize);
+    })
   });
 });
 
@@ -1498,7 +1894,6 @@ describe("InMemoryCache#broadcastWatches", function () {
     expect(receivedCallbackResults).toEqual([
       received1,
       // New results:
-      received1,
       received2,
     ]);
 
@@ -1527,7 +1922,6 @@ describe("InMemoryCache#broadcastWatches", function () {
 
     expect(receivedCallbackResults).toEqual([
       received1,
-      received1,
       received2,
       // New results:
       received3,
@@ -1547,15 +1941,11 @@ describe("InMemoryCache#broadcastWatches", function () {
 
     expect(receivedCallbackResults).toEqual([
       received1,
-      received1,
       received2,
       received3,
       received4,
       // New results:
-      received1,
       received2AllCaps,
-      received3,
-      received4,
     ]);
   });
 });
@@ -1728,8 +2118,8 @@ describe("InMemoryCache#modify", () => {
     })).toBe(false); // Nothing actually modified.
 
     const resultAfterAuthorInvalidation = read();
-    expect(resultAfterAuthorInvalidation).not.toBe(initialResult);
     expect(resultAfterAuthorInvalidation).toEqual(initialResult);
+    expect(resultAfterAuthorInvalidation).toBe(initialResult);
 
     expect(cache.modify({
       id: cache.identify({
@@ -1743,8 +2133,8 @@ describe("InMemoryCache#modify", () => {
     })).toBe(false); // Nothing actually modified.
 
     const resultAfterBookInvalidation = read();
-    expect(resultAfterBookInvalidation).not.toBe(resultAfterAuthorInvalidation);
     expect(resultAfterBookInvalidation).toEqual(resultAfterAuthorInvalidation);
+    expect(resultAfterBookInvalidation).toBe(resultAfterAuthorInvalidation);
     expect(resultAfterBookInvalidation.currentlyReading.author).toEqual({
       __typename: "Author",
       name: "Maria Dahvana Headley",
@@ -2266,6 +2656,17 @@ describe("InMemoryCache#modify", () => {
 
     expect(aResults).toEqual([a123, a124]);
     expect(bResults).toEqual([b321, b322]);
+
+    // Check that resetting the result cache does not trigger additional watch
+    // notifications.
+    expect(cache.gc({
+      resetResultCache: true,
+    })).toEqual([]);
+    expect(aResults).toEqual([a123, a124]);
+    expect(bResults).toEqual([b321, b322]);
+    cache["broadcastWatches"]();
+    expect(aResults).toEqual([a123, a124]);
+    expect(bResults).toEqual([b321, b322]);
   });
 
   it("should handle argument-determined field identities", () => {
@@ -2520,7 +2921,7 @@ describe("ReactiveVar and makeVar", () => {
 
     const query = gql`
       query {
-        onCall {
+        onCall @client {
           name
         }
       }
@@ -2591,9 +2992,8 @@ describe("ReactiveVar and makeVar", () => {
     });
 
     const result2 = cache.readQuery({ query });
-    // Without resultCaching, equivalent results will not be ===.
-    expect(result2).not.toBe(result1);
     expect(result2).toEqual(result1);
+    expect(result2).toBe(result1);
 
     expect(nameVar()).toBe("Ben");
     expect(nameVar("Hugh")).toBe("Hugh");

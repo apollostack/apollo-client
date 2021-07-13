@@ -402,7 +402,6 @@ describe('SharedHttpTest', () => {
   };
 
   it('passes all arguments to multiple fetch body including extensions', done => {
-    debugger;
     const link = createHttpLink({ uri: '/data', includeExtensions: true });
     verifyRequest(
       link,

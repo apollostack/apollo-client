@@ -6,7 +6,7 @@ import { ApolloLink } from '../../link/core';
 import { Operation } from '../../link/core';
 import { ApolloClient } from '../../core';
 import { ApolloCache, InMemoryCache } from '../../cache';
-import { itAsync } from '../../testing';
+import { itAsync, withErrorSpy } from '../../testing';
 
 describe('General functionality', () => {
   it('should not impact normal non-@client use', () => {
@@ -885,7 +885,7 @@ describe('Combining client and server state/operations', () => {
     resolve();
   });
 
-  itAsync('should handle a simple query with both server and client fields', (resolve, reject) => {
+  withErrorSpy(itAsync, 'should handle a simple query with both server and client fields', (resolve, reject) => {
     const query = gql`
       query GetCount {
         count @client
@@ -920,7 +920,7 @@ describe('Combining client and server state/operations', () => {
     });
   });
 
-  itAsync('should support nested querying of both server and client fields', (resolve, reject) => {
+  withErrorSpy(itAsync, 'should support nested querying of both server and client fields', (resolve, reject) => {
     const query = gql`
       query GetUser {
         user {

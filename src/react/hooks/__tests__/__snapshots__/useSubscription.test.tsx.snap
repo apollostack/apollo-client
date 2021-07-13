@@ -1,0 +1,47 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`useSubscription Hook should handle immediate completions gracefully 1`] = `
+[MockFunction] {
+  "calls": Array [
+    Array [
+      "Missing field 'car' while writing result {}",
+    ],
+  ],
+  "results": Array [
+    Object {
+      "type": "return",
+      "value": undefined,
+    },
+  ],
+}
+`;
+
+exports[`useSubscription Hook should handle immediate completions with multiple subscriptions gracefully 1`] = `
+[MockFunction] {
+  "calls": Array [
+    Array [
+      "Missing field 'car' while writing result {}",
+    ],
+    Array [
+      "Missing field 'car' while writing result {}",
+    ],
+    Array [
+      "Missing field 'car' while writing result {}",
+    ],
+  ],
+  "results": Array [
+    Object {
+      "type": "return",
+      "value": undefined,
+    },
+    Object {
+      "type": "return",
+      "value": undefined,
+    },
+    Object {
+      "type": "return",
+      "value": undefined,
+    },
+  ],
+}
+`;

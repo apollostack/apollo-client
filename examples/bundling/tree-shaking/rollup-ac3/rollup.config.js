@@ -29,6 +29,8 @@ function build({ outputPrefix, externals = [], gzip = false }) {
       cjs({
         namedExports: {
           'react': [
+            'createContext',
+            'createElement',
             'useRef',
             'useContext',
             'useReducer',

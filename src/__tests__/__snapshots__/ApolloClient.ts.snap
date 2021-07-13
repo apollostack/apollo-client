@@ -209,6 +209,25 @@ Object {
 }
 `;
 
+exports[`ApolloClient writeFragment should warn when the data provided does not match the fragment shape 1`] = `
+[MockFunction] {
+  "calls": Array [
+    Array [
+      "Missing field 'e' while writing result {
+  \\"__typename\\": \\"Bar\\",
+  \\"i\\": 10
+}",
+    ],
+  ],
+  "results": Array [
+    Object {
+      "type": "return",
+      "value": undefined,
+    },
+  ],
+}
+`;
+
 exports[`ApolloClient writeFragment will write some deeply nested data into the store at any id 1`] = `
 Object {
   "__META": Object {
@@ -356,6 +375,26 @@ Object {
       "__ref": "bar",
     },
   },
+}
+`;
+
+exports[`ApolloClient writeQuery should warn when the data provided does not match the query shape 1`] = `
+[MockFunction] {
+  "calls": Array [
+    Array [
+      "Missing field 'description' while writing result {
+  \\"id\\": \\"1\\",
+  \\"name\\": \\"Todo 1\\",
+  \\"__typename\\": \\"Todo\\"
+}",
+    ],
+  ],
+  "results": Array [
+    Object {
+      "type": "return",
+      "value": undefined,
+    },
+  ],
 }
 `;
 

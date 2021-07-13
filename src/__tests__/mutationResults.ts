@@ -6,7 +6,7 @@ import { ApolloClient } from '../core';
 import { InMemoryCache } from '../cache';
 import { ApolloLink } from '../link/core';
 import { Observable, ObservableSubscription as Subscription } from '../utilities';
-import { itAsync, subscribeAndCount, mockSingleLink } from '../testing';
+import { itAsync, subscribeAndCount, mockSingleLink, withErrorSpy } from '../testing';
 
 describe('mutation results', () => {
   const query = gql`
@@ -400,7 +400,7 @@ describe('mutation results', () => {
     resolve();
   });
 
-  itAsync("should warn when the result fields don't match the query fields", (resolve, reject) => {
+  withErrorSpy(itAsync, "should warn when the result fields don't match the query fields", (resolve, reject) => {
     let handle: any;
     let subscriptionHandle: Subscription;
 
@@ -482,16 +482,256 @@ describe('mutation results', () => {
           return newResults;
         },
       },
-    })).then(
-      () => {
-        subscriptionHandle.unsubscribe();
-        fail("should have errored");
-      },
-      error => {
-        subscriptionHandle.unsubscribe();
-        expect(error.message).toMatch(/Missing field 'description' /);
-      },
-    ).then(resolve, reject);
+    })).finally(
+      () => subscriptionHandle.unsubscribe(),
+    ).then(result => {
+      expect(result).toEqual(mutationTodoResult);
+    }).then(resolve, reject);
+  });
+
+  describe('InMemoryCache type/field policies', () => {
+    const startTime = Date.now();
+    const link = new ApolloLink(operation => new Observable(observer => {
+      observer.next({
+        data: {
+          __typename: "Mutation",
+          doSomething: {
+            __typename: "MutationPayload",
+            time: startTime,
+          },
+        },
+      });
+      observer.complete();
+    }));
+
+    const mutation = gql`
+      mutation DoSomething {
+        doSomething {
+          time
+        }
+      }
+    `;
+
+    it('mutation update function receives result from cache', () => {
+      let timeReadCount = 0;
+      let timeMergeCount = 0;
+
+      const client = new ApolloClient({
+        link,
+        cache: new InMemoryCache({
+          typePolicies: {
+            MutationPayload: {
+              fields: {
+                time: {
+                  read(ms: number = Date.now()) {
+                    ++timeReadCount;
+                    return new Date(ms);
+                  },
+                  merge(existing, incoming: number) {
+                    ++timeMergeCount;
+                    expect(existing).toBeUndefined();
+                    return incoming;
+                  },
+                },
+              },
+            },
+          },
+        }),
+      });
+
+      return client.mutate({
+        mutation,
+        update(cache, {
+          data: {
+            doSomething: {
+              __typename,
+              time,
+            },
+          },
+        }) {
+          expect(__typename).toBe("MutationPayload");
+          expect(time).toBeInstanceOf(Date);
+          expect(time.getTime()).toBe(startTime);
+          expect(timeReadCount).toBe(1);
+          expect(timeMergeCount).toBe(1);
+          expect(cache.extract()).toEqual({
+            ROOT_MUTATION: {
+              __typename: "Mutation",
+              doSomething: {
+                __typename: "MutationPayload",
+                time: startTime,
+              },
+            },
+          });
+        },
+      }).then(({
+        data: {
+          doSomething: {
+            __typename,
+            time,
+          },
+        },
+      }) => {
+        expect(__typename).toBe("MutationPayload");
+        expect(time).toBeInstanceOf(Date);
+        expect(time.getTime()).toBe(startTime);
+        expect(timeReadCount).toBe(1);
+        expect(timeMergeCount).toBe(1);
+
+        // The contents of the ROOT_MUTATION object exist only briefly, for the
+        // duration of the mutation update, and are removed after the mutation
+        // write is finished.
+        expect(client.cache.extract()).toEqual({
+          ROOT_MUTATION: {
+            __typename: "Mutation",
+          },
+        });
+      });
+    });
+
+    it('mutations can preserve ROOT_MUTATION cache data with keepRootFields: true', () => {
+      let timeReadCount = 0;
+      let timeMergeCount = 0;
+
+      const client = new ApolloClient({
+        link,
+        cache: new InMemoryCache({
+          typePolicies: {
+            MutationPayload: {
+              fields: {
+                time: {
+                  read(ms: number = Date.now()) {
+                    ++timeReadCount;
+                    return new Date(ms);
+                  },
+                  merge(existing, incoming: number) {
+                    ++timeMergeCount;
+                    expect(existing).toBeUndefined();
+                    return incoming;
+                  },
+                },
+              },
+            },
+          },
+        }),
+      });
+
+      return client.mutate({
+        mutation,
+        keepRootFields: true,
+        update(cache, {
+          data: {
+            doSomething: {
+              __typename,
+              time,
+            },
+          },
+        }) {
+          expect(__typename).toBe("MutationPayload");
+          expect(time).toBeInstanceOf(Date);
+          expect(time.getTime()).toBe(startTime);
+          expect(timeReadCount).toBe(1);
+          expect(timeMergeCount).toBe(1);
+          expect(cache.extract()).toEqual({
+            ROOT_MUTATION: {
+              __typename: "Mutation",
+              doSomething: {
+                __typename: "MutationPayload",
+                time: startTime,
+              },
+            },
+          });
+        },
+      }).then(({
+        data: {
+          doSomething: {
+            __typename,
+            time,
+          },
+        },
+      }) => {
+        expect(__typename).toBe("MutationPayload");
+        expect(time).toBeInstanceOf(Date);
+        expect(time.getTime()).toBe(startTime);
+        expect(timeReadCount).toBe(1);
+        expect(timeMergeCount).toBe(1);
+
+        expect(client.cache.extract()).toEqual({
+          ROOT_MUTATION: {
+            __typename: "Mutation",
+            doSomething: {
+              __typename: "MutationPayload",
+              time: startTime,
+            },
+          },
+        });
+      });
+    });
+
+    it('mutation update function runs even when fetchPolicy is "no-cache"', async () => {
+      let timeReadCount = 0;
+      let timeMergeCount = 0;
+      let mutationUpdateCount = 0;
+
+      const client = new ApolloClient({
+        link,
+        cache: new InMemoryCache({
+          typePolicies: {
+            MutationPayload: {
+              fields: {
+                time: {
+                  read(ms: number = Date.now()) {
+                    ++timeReadCount;
+                    return new Date(ms);
+                  },
+                  merge(existing, incoming: number) {
+                    ++timeMergeCount;
+                    expect(existing).toBeUndefined();
+                    return incoming;
+                  },
+                },
+              },
+            },
+          },
+        }),
+      });
+
+      return client.mutate({
+        mutation,
+        fetchPolicy: "no-cache",
+        update(cache, {
+          data: {
+            doSomething: {
+              __typename,
+              time,
+            },
+          },
+        }) {
+          expect(++mutationUpdateCount).toBe(1);
+          expect(__typename).toBe("MutationPayload");
+          expect(time).not.toBeInstanceOf(Date);
+          expect(time).toBe(startTime);
+          expect(timeReadCount).toBe(0);
+          expect(timeMergeCount).toBe(0);
+          expect(cache.extract()).toEqual({});
+        },
+      }).then(({
+        data: {
+          doSomething: {
+            __typename,
+            time,
+          },
+        },
+      }) => {
+        expect(__typename).toBe("MutationPayload");
+        expect(time).not.toBeInstanceOf(Date);
+        expect(time).toBe(+startTime);
+        expect(timeReadCount).toBe(0);
+        expect(timeMergeCount).toBe(0);
+        expect(mutationUpdateCount).toBe(1);
+        expect(client.cache.extract()).toEqual({});
+      });
+    });
   });
 
   describe('updateQueries', () => {
@@ -934,20 +1174,19 @@ describe('mutation results', () => {
       client.mutate({
         mutation,
       }),
-    ])
-      .then(() => {
-        expect((client.cache as InMemoryCache).extract()).toEqual({
-          ROOT_MUTATION: {
-            __typename: 'Mutation',
-            'result({"a":1,"b":2})': 'hello',
-            'result({"a":1,"c":3})': 'world',
-            'result({"b":2,"c":3})': 'goodbye',
-            'result({})': 'moon',
-          },
-        });
-        resolve();
-      })
-      .catch(reject);
+    ]).then(results => {
+      expect(client.cache.extract()).toEqual({
+        ROOT_MUTATION: {
+          __typename: "Mutation",
+        },
+      });
+      expect(results).toEqual([
+        { data: { result: "hello" }},
+        { data: { result: "world" }},
+        { data: { result: "goodbye" }},
+        { data: { result: "moon" }},
+      ]);
+    }).then(resolve, reject);
   });
 
   itAsync('allows mutations with default values', (resolve, reject) => {
@@ -1012,19 +1251,18 @@ describe('mutation results', () => {
         mutation,
         variables: { c: 3 },
       }),
-    ])
-      .then(() => {
-        expect((client.cache as InMemoryCache).extract()).toEqual({
-          ROOT_MUTATION: {
-            __typename: 'Mutation',
-            'result({"a":1,"b":"water"})': 'hello',
-            'result({"a":2,"b":"cheese","c":3})': 'world',
-            'result({"a":1,"b":"cheese","c":3})': 'goodbye',
-          },
-        });
-        resolve();
-      })
-      .catch(reject);
+    ]).then(results => {
+      expect(client.cache.extract()).toEqual({
+        ROOT_MUTATION: {
+          __typename: "Mutation",
+        },
+      });
+      expect(results).toEqual([
+        { data: { result: 'hello' }},
+        { data: { result: 'world' }},
+        { data: { result: 'goodbye' }},
+      ]);
+    }).then(resolve, reject);
   });
 
   itAsync('will pass null to the network interface when provided', (resolve, reject) => {
@@ -1090,19 +1328,18 @@ describe('mutation results', () => {
         mutation,
         variables: { a: null, b: null, c: null },
       }),
-    ])
-      .then(() => {
-        expect((client.cache as InMemoryCache).extract()).toEqual({
-          ROOT_MUTATION: {
-            __typename: 'Mutation',
-            'result({"a":1,"b":2,"c":null})': 'hello',
-            'result({"a":1,"b":null,"c":3})': 'world',
-            'result({"a":null,"b":null,"c":null})': 'moon',
-          },
-        });
-        resolve();
-      })
-      .catch(reject);
+    ]).then(results => {
+      expect(client.cache.extract()).toEqual({
+        ROOT_MUTATION: {
+          __typename: "Mutation",
+        },
+      });
+      expect(results).toEqual([
+        { data: { result: 'hello' }},
+        { data: { result: 'world' }},
+        { data: { result: 'moon' }},
+      ]);
+    }).then(resolve, reject);
   });
 
   describe('store transaction updater', () => {

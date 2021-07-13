@@ -324,6 +324,161 @@ describe('no-cache', () => {
       })
       .then(resolve, reject);
   });
+
+  describe('when notifyOnNetworkStatusChange is set', () => {
+    itAsync('does not save the data to the cache on success', (resolve, reject) => {
+      let called = 0;
+      const inspector = new ApolloLink((operation, forward) => {
+        called++;
+        return forward(operation).map(result => {
+          called++;
+          return result;
+        });
+      });
+
+      const client = new ApolloClient({
+        link: inspector.concat(createLink(reject)),
+        cache: new InMemoryCache({ addTypename: false }),
+      });
+
+      return client.query({ query, fetchPolicy: 'no-cache', notifyOnNetworkStatusChange: true }).then(
+        () => client.query({ query }).then(actualResult => {
+          expect(stripSymbols(actualResult.data)).toEqual(result);
+          // the second query couldn't read anything from the cache
+          expect(called).toBe(4);
+        }),
+      ).then(resolve, reject);
+    });
+
+    itAsync('does not save data to the cache on failure', (resolve, reject) => {
+      let called = 0;
+      const inspector = new ApolloLink((operation, forward) => {
+        called++;
+        return forward(operation).map(result => {
+          called++;
+          return result;
+        });
+      });
+
+      const client = new ApolloClient({
+        link: inspector.concat(createFailureLink()),
+        cache: new InMemoryCache({ addTypename: false }),
+      });
+
+      let didFail = false;
+      return client
+        .query({ query, fetchPolicy: 'no-cache', notifyOnNetworkStatusChange: true })
+        .catch(e => {
+          expect(e.message).toMatch('query failed');
+          didFail = true;
+        })
+        .then(() => client.query({ query }).then(actualResult => {
+          expect(stripSymbols(actualResult.data)).toEqual(result);
+          // the first error doesn't call .map on the inspector
+          expect(called).toBe(3);
+          expect(didFail).toBe(true);
+        }))
+        .then(resolve, reject);
+    });
+
+    itAsync('gives appropriate networkStatus for watched queries', (resolve, reject) => {
+      const client = new ApolloClient({
+        link: ApolloLink.empty(),
+        cache: new InMemoryCache(),
+        resolvers: {
+          Query: {
+            hero(_data, args) {
+              return {
+                __typename: 'Hero',
+                ...args,
+                name: 'Luke Skywalker',
+              };
+            },
+          },
+        },
+      });
+
+      const observable = client.watchQuery({
+        query: gql`
+          query FetchLuke($id: String) {
+            hero(id: $id) @client {
+              id
+              name
+            }
+          }
+        `,
+        fetchPolicy: 'no-cache',
+        variables: { id: '1' },
+        notifyOnNetworkStatusChange: true,
+      });
+
+      function dataWithId(id: number | string) {
+        return {
+          hero: {
+            __typename: 'Hero',
+            id: String(id),
+            name: 'Luke Skywalker',
+          },
+        };
+      }
+
+      subscribeAndCount(reject, observable, (count, result) => {
+        if (count === 1) {
+          expect(result).toEqual({
+            data: dataWithId(1),
+            loading: false,
+            networkStatus: NetworkStatus.ready,
+          });
+          expect(client.cache.extract(true)).toEqual({});
+          return observable.setVariables({ id: '2' });
+        } else if (count === 2) {
+          expect(result).toEqual({
+            loading: true,
+            networkStatus: NetworkStatus.setVariables,
+            partial: true,
+          });
+        } else if (count === 3) {
+          expect(result).toEqual({
+            data: dataWithId(2),
+            loading: false,
+            networkStatus: NetworkStatus.ready,
+          });
+          expect(client.cache.extract(true)).toEqual({});
+          return observable.refetch();
+        } else if (count === 4) {
+          expect(result).toEqual({
+            data: dataWithId(2),
+            loading: true,
+            networkStatus: NetworkStatus.refetch,
+          });
+          expect(client.cache.extract(true)).toEqual({});
+        } else if (count === 5) {
+          expect(result).toEqual({
+            data: dataWithId(2),
+            loading: false,
+            networkStatus: NetworkStatus.ready,
+          });
+          expect(client.cache.extract(true)).toEqual({});
+          return observable.refetch({ id: '3' });
+        } else if (count === 6) {
+          expect(result).toEqual({
+            loading: true,
+            networkStatus: NetworkStatus.setVariables,
+            partial: true,
+          });
+          expect(client.cache.extract(true)).toEqual({});
+        } else if (count === 7) {
+          expect(result).toEqual({
+            data: dataWithId(3),
+            loading: false,
+            networkStatus: NetworkStatus.ready,
+          });
+          expect(client.cache.extract(true)).toEqual({});
+          resolve();
+        }
+      });
+    });
+  });
 });
 
 describe('cache-first', () => {
@@ -455,7 +610,7 @@ describe('cache-only', () => {
       })),
     });
 
-    const query = gql`query { counter }`;
+    const query = gql`query { count }`;
 
     const observable = client.watchQuery({
       query,

@@ -50,6 +50,51 @@ Object {
 }
 `;
 
+exports[`type policies complains about missing key fields 1`] = `
+[MockFunction] {
+  "calls": Array [
+    Array [
+      "Missing field 'title' while writing result {
+  \\"year\\": 2011,
+  \\"theInformationBookData\\": {
+    \\"__typename\\": \\"Book\\",
+    \\"isbn\\": \\"1400096235\\",
+    \\"title\\": \\"The Information\\",
+    \\"subtitle\\": \\"A History, a Theory, a Flood\\",
+    \\"author\\": {
+      \\"name\\": \\"James Gleick\\"
+    }
+  }
+}",
+    ],
+  ],
+  "results": Array [
+    Object {
+      "type": "return",
+      "value": undefined,
+    },
+  ],
+}
+`;
+
+exports[`type policies field policies assumes keyArgs:false when read and merge function present 1`] = `
+[MockFunction] {
+  "calls": Array [
+    Array [
+      "Missing field 'a' while writing result {
+  \\"__typename\\": \\"TypeA\\"
+}",
+    ],
+  ],
+  "results": Array [
+    Object {
+      "type": "return",
+      "value": undefined,
+    },
+  ],
+}
+`;
+
 exports[`type policies field policies can handle Relay-style pagination 1`] = `
 Object {
   "Artist:{\\"href\\":\\"/artist/jean-michel-basquiat\\"}": Object {
@@ -749,6 +794,7 @@ Object {
           "cursor": "YXJyYXljb25uZWN0aW9uOjEx",
           "node": Object {
             "__typename": "SearchableItem",
+            "description": "<placeholder for unknown description>",
             "displayLabel": "James Turrell: Light knows when we’re looking",
           },
         },
@@ -1211,6 +1257,45 @@ Object {
 }
 `;
 
+exports[`type policies field policies read and merge can cooperate through options.storage 1`] = `
+[MockFunction] {
+  "calls": Array [
+    Array [
+      "Missing field 'result' while writing result {
+  \\"__typename\\": \\"Job\\",
+  \\"name\\": \\"Job #1\\"
+}",
+    ],
+    Array [
+      "Missing field 'result' while writing result {
+  \\"__typename\\": \\"Job\\",
+  \\"name\\": \\"Job #2\\"
+}",
+    ],
+    Array [
+      "Missing field 'result' while writing result {
+  \\"__typename\\": \\"Job\\",
+  \\"name\\": \\"Job #3\\"
+}",
+    ],
+  ],
+  "results": Array [
+    Object {
+      "type": "return",
+      "value": undefined,
+    },
+    Object {
+      "type": "return",
+      "value": undefined,
+    },
+    Object {
+      "type": "return",
+      "value": undefined,
+    },
+  ],
+}
+`;
+
 exports[`type policies field policies read, merge, and modify functions can access options.storage 1`] = `
 Object {
   "ROOT_QUERY": Object {
@@ -1230,6 +1315,77 @@ Object {
     "mergeRead": 1,
     "mergeReadModify": 101,
   },
+}
+`;
+
+exports[`type policies field policies readField helper function calls custom read functions 1`] = `
+[MockFunction] {
+  "calls": Array [
+    Array [
+      "Missing field 'blockers' while writing result {
+  \\"__typename\\": \\"Task\\",
+  \\"id\\": 4,
+  \\"description\\": \\"grandchild task\\"
+}",
+    ],
+  ],
+  "results": Array [
+    Object {
+      "type": "return",
+      "value": undefined,
+    },
+  ],
+}
+`;
+
+exports[`type policies field policies runs nested merge functions as well as ancestors 1`] = `
+[MockFunction] {
+  "calls": Array [
+    Array [
+      "Missing field 'time' while writing result {
+  \\"__typename\\": \\"Event\\",
+  \\"id\\": 123
+}",
+    ],
+    Array [
+      "Missing field 'time' while writing result {
+  \\"__typename\\": \\"Event\\",
+  \\"id\\": 345,
+  \\"name\\": \\"Rooftop dog party\\",
+  \\"attendees\\": [
+    {
+      \\"__typename\\": \\"Attendee\\",
+      \\"id\\": 456,
+      \\"name\\": \\"Inspector Beckett\\"
+    },
+    {
+      \\"__typename\\": \\"Attendee\\",
+      \\"id\\": 234
+    }
+  ]
+}",
+    ],
+    Array [
+      "Missing field 'name' while writing result {
+  \\"__typename\\": \\"Attendee\\",
+  \\"id\\": 234
+}",
+    ],
+  ],
+  "results": Array [
+    Object {
+      "type": "return",
+      "value": undefined,
+    },
+    Object {
+      "type": "return",
+      "value": undefined,
+    },
+    Object {
+      "type": "return",
+      "value": undefined,
+    },
+  ],
 }
 `;
 

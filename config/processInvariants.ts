@@ -71,7 +71,7 @@ function transform(code: string, file: string) {
       const node = path.node;
 
       if (isCallWithLength(node, "invariant", 1)) {
-        if (isNodeEnvConditional(path.parent.node)) {
+        if (isDEVConditional(path.parent.node)) {
           return;
         }
 
@@ -79,22 +79,22 @@ function transform(code: string, file: string) {
         newArgs.push(getErrorCode(file, node));
 
         return b.conditionalExpression(
-          makeNodeEnvTest(),
+          makeDEVExpr(),
+          node,
           b.callExpression.from({
             ...node,
             arguments: newArgs,
           }),
-          node,
         );
       }
 
       if (node.callee.type === "MemberExpression" &&
           isIdWithName(node.callee.object, "invariant") &&
-          isIdWithName(node.callee.property, "warn", "error")) {
-        if (isNodeEnvLogicalOr(path.parent.node)) {
+          isIdWithName(node.callee.property, "debug", "log", "warn", "error")) {
+        if (isDEVLogicalAnd(path.parent.node)) {
           return;
         }
-        return b.logicalExpression("||", makeNodeEnvTest(), node);
+        return b.logicalExpression("&&", makeDEVExpr(), node);
       }
     },
 
@@ -102,19 +102,19 @@ function transform(code: string, file: string) {
       this.traverse(path);
       const node = path.node;
       if (isCallWithLength(node, "InvariantError", 0)) {
-        if (isNodeEnvConditional(path.parent.node)) {
+        if (isDEVConditional(path.parent.node)) {
           return;
         }
 
         const newArgs = [getErrorCode(file, node)];
 
         return b.conditionalExpression(
-          makeNodeEnvTest(),
+          makeDEVExpr(),
+          node,
           b.newExpression.from({
             ...node,
             arguments: newArgs,
           }),
-          node,
         );
       }
     }
@@ -137,32 +137,21 @@ function isCallWithLength(
     node.arguments.length > length;
 }
 
-function isNodeEnvConditional(node: Node) {
+function isDEVConditional(node: Node) {
   return n.ConditionalExpression.check(node) &&
-    isNodeEnvExpr(node.test);
+    isDEVExpr(node.test);
 }
 
-function isNodeEnvLogicalOr(node: Node) {
+function isDEVLogicalAnd(node: Node) {
   return n.LogicalExpression.check(node) &&
-    node.operator === "||" &&
-    isNodeEnvExpr(node.left);
+    node.operator === "&&" &&
+    isDEVExpr(node.left);
 }
 
-function makeNodeEnvTest() {
-  return b.binaryExpression(
-    "===",
-    b.memberExpression(
-      b.memberExpression(
-        b.identifier("process"),
-        b.identifier("env")
-      ),
-      b.identifier("NODE_ENV"),
-    ),
-    b.stringLiteral("production"),
-  );
+function makeDEVExpr() {
+  return b.identifier("__DEV__");
 }
 
-const referenceNodeEnvExpr = makeNodeEnvTest();
-function isNodeEnvExpr(node: Node) {
-  return recast.types.astNodesAreEquivalent(node, referenceNodeEnvExpr);
+function isDEVExpr(node: Node) {
+  return isIdWithName(node, "__DEV__");
 }

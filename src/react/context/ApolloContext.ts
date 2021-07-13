@@ -1,4 +1,4 @@
-import React from 'react';
+import * as React from 'react';
 import { ApolloClient } from '../../core';
 import { canUseWeakMap } from '../../utilities';
 

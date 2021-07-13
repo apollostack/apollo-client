@@ -1,13 +1,15 @@
 import React, { useEffect } from 'react';
-import { DocumentNode, GraphQLError } from 'graphql';
+import { GraphQLError } from 'graphql';
 import gql from 'graphql-tag';
 import { render, cleanup, wait } from '@testing-library/react';
 
-import { ApolloClient } from '../../../core';
+import { ApolloClient, ApolloLink, ApolloQueryResult, Cache, NetworkStatus, Observable, ObservableQuery, TypedDocumentNode } from '../../../core';
 import { InMemoryCache } from '../../../cache';
 import { itAsync, MockedProvider, mockSingleLink } from '../../../testing';
 import { ApolloProvider } from '../../context';
+import { useQuery } from '../useQuery';
 import { useMutation } from '../useMutation';
+import { act } from 'react-dom/test-utils';
 
 describe('useMutation Hook', () => {
   interface Todo {
@@ -16,7 +18,7 @@ describe('useMutation Hook', () => {
     priority: string;
   }
 
-  const CREATE_TODO_MUTATION: DocumentNode = gql`
+  const CREATE_TODO_MUTATION = gql`
     mutation createTodo($description: String!, $priority: String) {
       createTodo(description: $description, priority: $priority) {
         id
@@ -478,6 +480,435 @@ describe('useMutation Hook', () => {
     });
   });
 
+  describe('ROOT_MUTATION cache data', () => {
+    const startTime = Date.now();
+    const link = new ApolloLink(operation => new Observable(observer => {
+      observer.next({
+        data: {
+          __typename: "Mutation",
+          doSomething: {
+            __typename: "MutationPayload",
+            time: startTime,
+          },
+        },
+      });
+      observer.complete();
+    }));
+
+    const mutation = gql`
+      mutation DoSomething {
+        doSomething {
+          time
+        }
+      }
+    `;
+
+    itAsync('should be removed by default after the mutation', (resolve, reject) => {
+      let timeReadCount = 0;
+      let timeMergeCount = 0;
+
+      const client = new ApolloClient({
+        link,
+        cache: new InMemoryCache({
+          typePolicies: {
+            MutationPayload: {
+              fields: {
+                time: {
+                  read(ms: number = Date.now()) {
+                    ++timeReadCount;
+                    return new Date(ms);
+                  },
+                  merge(existing, incoming: number) {
+                    ++timeMergeCount;
+                    expect(existing).toBeUndefined();
+                    return incoming;
+                  },
+                },
+              },
+            },
+          },
+        }),
+      });
+
+      let renderCount = 0;
+      function Component() {
+        // This test differs from the following test primarily by *not* passing
+        // keepRootFields: true in the useMutation options.
+        const [mutate, result] = useMutation(mutation);
+
+        switch (++renderCount) {
+          case 1: {
+            expect(result.loading).toBe(false);
+            expect(result.called).toBe(false);
+            expect(result.data).toBeUndefined();
+
+            mutate({
+              update(cache, {
+                data: {
+                  doSomething: {
+                    __typename,
+                    time,
+                  },
+                },
+              }) {
+                expect(__typename).toBe("MutationPayload");
+                expect(time).toBeInstanceOf(Date);
+                expect(time.getTime()).toBe(startTime);
+                expect(timeReadCount).toBe(1);
+                expect(timeMergeCount).toBe(1);
+                // The contents of the ROOT_MUTATION object exist only briefly,
+                // for the duration of the mutation update, and are removed
+                // after the mutation write is finished.
+                expect(cache.extract()).toEqual({
+                  ROOT_MUTATION: {
+                    __typename: "Mutation",
+                    doSomething: {
+                      __typename: "MutationPayload",
+                      time: startTime,
+                    },
+                  },
+                });
+              },
+            }).then(({
+              data: {
+                doSomething: {
+                  __typename,
+                  time,
+                },
+              },
+            }) => {
+              expect(__typename).toBe("MutationPayload");
+              expect(time).toBeInstanceOf(Date);
+              expect(time.getTime()).toBe(startTime);
+              expect(timeReadCount).toBe(1);
+              expect(timeMergeCount).toBe(1);
+              // The contents of the ROOT_MUTATION object exist only briefly,
+              // for the duration of the mutation update, and are removed after
+              // the mutation write is finished.
+              expect(client.cache.extract()).toEqual({
+                ROOT_MUTATION: {
+                  __typename: "Mutation",
+                },
+              });
+            }).catch(reject);
+
+            break;
+          }
+          case 2: {
+            expect(result.loading).toBe(true);
+            expect(result.called).toBe(true);
+            expect(result.data).toBeUndefined();
+            break;
+          }
+          case 3: {
+            expect(result.loading).toBe(false);
+            expect(result.called).toBe(true);
+            const {
+              doSomething: {
+                __typename,
+                time,
+              },
+            } = result.data;
+            expect(__typename).toBe("MutationPayload");
+            expect(time).toBeInstanceOf(Date);
+            expect(time.getTime()).toBe(startTime);
+            break;
+          }
+          default:
+            console.log(result);
+            reject("too many renders");
+            break;
+        }
+
+        return null;
+      }
+
+      render(
+        <ApolloProvider client={client}>
+          <Component />
+        </ApolloProvider>
+      );
+
+      return wait(() => {
+        expect(renderCount).toBe(3);
+      }).then(resolve, reject);
+    });
+
+    itAsync('can be preserved by passing keepRootFields: true', (resolve, reject) => {
+      let timeReadCount = 0;
+      let timeMergeCount = 0;
+
+      const client = new ApolloClient({
+        link,
+        cache: new InMemoryCache({
+          typePolicies: {
+            MutationPayload: {
+              fields: {
+                time: {
+                  read(ms: number = Date.now()) {
+                    ++timeReadCount;
+                    return new Date(ms);
+                  },
+                  merge(existing, incoming: number) {
+                    ++timeMergeCount;
+                    expect(existing).toBeUndefined();
+                    return incoming;
+                  },
+                },
+              },
+            },
+          },
+        }),
+      });
+
+      let renderCount = 0;
+      function Component() {
+        const [mutate, result] = useMutation(mutation, {
+          // This test differs from the previous test primarily by passing
+          // keepRootFields:true in the useMutation options.
+          keepRootFields: true,
+        });
+
+        switch (++renderCount) {
+          case 1: {
+            expect(result.loading).toBe(false);
+            expect(result.called).toBe(false);
+            expect(result.data).toBeUndefined();
+
+            mutate({
+              update(cache, {
+                data: {
+                  doSomething: {
+                    __typename,
+                    time,
+                  },
+                },
+              }) {
+                expect(__typename).toBe("MutationPayload");
+                expect(time).toBeInstanceOf(Date);
+                expect(time.getTime()).toBe(startTime);
+                expect(timeReadCount).toBe(1);
+                expect(timeMergeCount).toBe(1);
+                expect(cache.extract()).toEqual({
+                  ROOT_MUTATION: {
+                    __typename: "Mutation",
+                    doSomething: {
+                      __typename: "MutationPayload",
+                      time: startTime,
+                    },
+                  },
+                });
+              },
+            }).then(({
+              data: {
+                doSomething: {
+                  __typename,
+                  time,
+                },
+              },
+            }) => {
+              expect(__typename).toBe("MutationPayload");
+              expect(time).toBeInstanceOf(Date);
+              expect(time.getTime()).toBe(startTime);
+              expect(timeReadCount).toBe(1);
+              expect(timeMergeCount).toBe(1);
+
+              expect(client.cache.extract()).toEqual({
+                ROOT_MUTATION: {
+                  __typename: "Mutation",
+                  doSomething: {
+                    __typename: "MutationPayload",
+                    time: startTime,
+                  },
+                },
+              });
+            }).catch(reject);
+
+            break;
+          }
+          case 2: {
+            expect(result.loading).toBe(true);
+            expect(result.called).toBe(true);
+            expect(result.data).toBeUndefined();
+            break;
+          }
+          case 3: {
+            expect(result.loading).toBe(false);
+            expect(result.called).toBe(true);
+            const {
+              doSomething: {
+                __typename,
+                time,
+              },
+            } = result.data;
+            expect(__typename).toBe("MutationPayload");
+            expect(time).toBeInstanceOf(Date);
+            expect(time.getTime()).toBe(startTime);
+            break;
+          }
+          default:
+            console.log(result);
+            reject("too many renders");
+            break;
+        }
+
+        return null;
+      }
+
+      render(
+        <ApolloProvider client={client}>
+          <Component />
+        </ApolloProvider>
+      );
+
+      return wait(() => {
+        expect(renderCount).toBe(3);
+      }).then(resolve, reject);
+    });
+  });
+
+  describe('Update function', () => {
+    itAsync('should be called with the provided variables', (resolve, reject) => {
+      const variables = {
+        description: 'Get milk!'
+      };
+
+      const mocks = [
+        {
+          request: {
+            query: CREATE_TODO_MUTATION,
+            variables
+          },
+          result: { data: CREATE_TODO_RESULT }
+        }
+      ];
+
+      let variablesMatched = false;
+      const Component = () => {
+        const [createTodo] = useMutation(
+          CREATE_TODO_MUTATION,
+          {
+            update(_, __, options) {
+              expect(options.variables).toEqual(variables);
+              variablesMatched = true;
+            }
+          }
+        );
+
+        useEffect(() => {
+          createTodo({ variables });
+        }, []);
+
+        return null;
+      };
+
+      render(
+        <MockedProvider mocks={mocks}>
+          <Component />
+        </MockedProvider>
+      );
+
+      return wait(() => {
+        expect(variablesMatched).toBe(true);
+      }).then(resolve, reject);
+    });
+
+    itAsync('should be called with the provided context', (resolve, reject) => {
+      const context = { id: 3 };
+
+      const variables = {
+        description: 'Get milk!'
+      };
+
+      const mocks = [
+        {
+          request: {
+            query: CREATE_TODO_MUTATION,
+            variables
+          },
+          result: { data: CREATE_TODO_RESULT }
+        }
+      ];
+
+      let foundContext = false;
+      const Component = () => {
+        const [createTodo] = useMutation<Todo, { description: string }, { id: number }>(
+          CREATE_TODO_MUTATION,
+          {
+            context,
+            update(_, __, options) {
+              expect(options.context).toEqual(context);
+              foundContext = true;
+            }
+          }
+        );
+
+        useEffect(() => {
+          createTodo({ variables });
+        }, []);
+
+        return null;
+      };
+
+      render(
+        <MockedProvider mocks={mocks}>
+          <Component />
+        </MockedProvider>
+      );
+
+      return wait(() => {
+        expect(foundContext).toBe(true);
+      }).then(resolve, reject);
+    });
+
+    describe('If context is not provided', () => {
+      itAsync('should be undefined', (resolve, reject) => {
+        const variables = {
+          description: 'Get milk!'
+        };
+
+        const mocks = [
+          {
+            request: {
+              query: CREATE_TODO_MUTATION,
+              variables
+            },
+            result: { data: CREATE_TODO_RESULT }
+          }
+        ];
+
+        let checkedContext = false;
+        const Component = () => {
+          const [createTodo] = useMutation(
+            CREATE_TODO_MUTATION,
+            {
+              update(_, __, options) {
+                expect(options.context).toBeUndefined();
+                checkedContext = true;
+              }
+            }
+          );
+
+          useEffect(() => {
+            createTodo({ variables });
+          }, []);
+
+          return null;
+        };
+
+        render(
+          <MockedProvider mocks={mocks}>
+            <Component />
+          </MockedProvider>
+        );
+
+        return wait(() => {
+          expect(checkedContext).toBe(true);
+        }).then(resolve, reject);
+      });
+    });
+  });
+
   describe('Optimistic response', () => {
     itAsync('should support optimistic response handling', async (resolve, reject) => {
       const optimisticResponse = {
@@ -553,6 +984,529 @@ describe('useMutation Hook', () => {
       return wait(() => {
         expect(renderCount).toBe(3);
       }).then(resolve, reject);
+    });
+
+    itAsync('should be called with the provided context', async (resolve, reject) => {
+      const optimisticResponse = {
+        __typename: 'Mutation',
+        createTodo: {
+          id: 1,
+          description: 'TEMPORARY',
+          priority: 'High',
+          __typename: 'Todo'
+        }
+      };
+
+      const context = { id: 3 };
+
+      const variables = {
+        description: 'Get milk!'
+      };
+
+      const mocks = [
+        {
+          request: {
+            query: CREATE_TODO_MUTATION,
+            variables
+          },
+          result: { data: CREATE_TODO_RESULT }
+        }
+      ];
+
+      const contextFn = jest.fn();
+
+      const Component = () => {
+        const [createTodo] = useMutation(
+          CREATE_TODO_MUTATION,
+          {
+            optimisticResponse,
+            context,
+            update(_, __, options) {
+              contextFn(options.context);
+            }
+          }
+        );
+
+        useEffect(() => {
+          createTodo({ variables });
+        }, []);
+
+        return null;
+      };
+
+      render(
+        <MockedProvider mocks={mocks}>
+          <Component />
+        </MockedProvider>
+      );
+
+      return wait(() => {
+        expect(contextFn).toHaveBeenCalledTimes(2);
+        expect(contextFn).toHaveBeenCalledWith(context);
+      }).then(resolve, reject);
+    });
+  });
+
+  describe('refetching queries', () => {
+    itAsync('can pass onQueryUpdated to useMutation', (resolve, reject) => {
+      interface TData {
+        todoCount: number;
+      }
+      const countQuery: TypedDocumentNode<TData> = gql`
+        query Count { todoCount @client }
+      `;
+
+      const optimisticResponse = {
+        __typename: 'Mutation',
+        createTodo: {
+          id: 1,
+          description: 'TEMPORARY',
+          priority: 'High',
+          __typename: 'Todo'
+        }
+      };
+
+      const variables = {
+        description: 'Get milk!'
+      };
+
+      const client = new ApolloClient({
+        cache: new InMemoryCache({
+          typePolicies: {
+            Query: {
+              fields: {
+                todoCount(count = 0) {
+                  return count;
+                },
+              },
+            },
+          },
+        }),
+
+        link: mockSingleLink({
+          request: {
+            query: CREATE_TODO_MUTATION,
+            variables,
+          },
+          result: { data: CREATE_TODO_RESULT },
+        }).setOnError(reject),
+      });
+
+      // The goal of this test is to make sure onQueryUpdated gets called as
+      // part of the createTodo mutation, so we use this reobservePromise to
+      // await the calling of onQueryUpdated.
+      interface OnQueryUpdatedResults {
+        obsQuery: ObservableQuery;
+        diff: Cache.DiffResult<TData>;
+        result: ApolloQueryResult<TData>;
+      }
+      let resolveOnUpdate: (results: OnQueryUpdatedResults) => any;
+      const onUpdatePromise = new Promise<OnQueryUpdatedResults>(resolve => {
+        resolveOnUpdate = resolve;
+      });
+      let finishedReobserving = false;
+
+      let renderCount = 0;
+      function Component() {
+        const count = useQuery(countQuery);
+
+        const [createTodo, { loading, data }] =
+          useMutation(CREATE_TODO_MUTATION, {
+            optimisticResponse,
+
+            update(cache, mutationResult) {
+              const result = cache.readQuery({
+                query: countQuery,
+              });
+
+              cache.writeQuery({
+                query: countQuery,
+                data: {
+                  todoCount: (result ? result.todoCount : 0) + 1,
+                },
+              });
+            },
+          });
+
+        switch (++renderCount) {
+          case 1:
+            expect(count.loading).toBe(false);
+            expect(count.data).toEqual({ todoCount: 0 });
+
+            expect(loading).toBeFalsy();
+            expect(data).toBeUndefined();
+
+            act(() => {
+              createTodo({
+                variables,
+                onQueryUpdated(obsQuery, diff) {
+                  return obsQuery.reobserve().then(result => {
+                    finishedReobserving = true;
+                    resolveOnUpdate({ obsQuery, diff, result });
+                    return result;
+                  });
+                },
+              });
+            });
+
+            break;
+          case 2:
+            expect(count.loading).toBe(false);
+            expect(count.data).toEqual({ todoCount: 0 });
+
+            expect(loading).toBeTruthy();
+            expect(data).toBeUndefined();
+
+            expect(finishedReobserving).toBe(false);
+            break;
+          case 3:
+            expect(count.loading).toBe(false);
+            expect(count.data).toEqual({ todoCount: 1 });
+
+            expect(loading).toBe(true);
+            expect(data).toBeUndefined();
+
+            expect(finishedReobserving).toBe(false);
+            break;
+          case 4:
+            expect(count.loading).toBe(false);
+            expect(count.data).toEqual({ todoCount: 1 });
+
+            expect(loading).toBe(false);
+            expect(data).toEqual(CREATE_TODO_RESULT);
+
+            expect(finishedReobserving).toBe(true);
+            break;
+          default:
+            reject("too many renders");
+        }
+
+        return null;
+      }
+
+      render(
+        <ApolloProvider client={client}>
+          <Component />
+        </ApolloProvider>
+      );
+
+      return wait(() => onUpdatePromise.then(results => {
+        expect(finishedReobserving).toBe(true);
+        expect(renderCount).toBe(4);
+
+        expect(results.diff).toEqual({
+          complete: true,
+          result: {
+            todoCount: 1,
+          },
+        });
+
+        expect(results.result).toEqual({
+          loading: false,
+          networkStatus: NetworkStatus.ready,
+          data: {
+            todoCount: 1,
+          },
+        });
+      })).then(resolve, reject);
+    });
+
+    const GET_TODOS_QUERY = gql`
+      query getTodos {
+        todos {
+          id
+          description
+          priority
+        }
+      }
+    `;
+
+    const GET_TODOS_RESULT_1 = {
+      todos: [
+        {
+          id: 2,
+          description: 'Walk the dog',
+          priority: 'Medium',
+          __typename: 'Todo'
+        },
+        {
+          id: 3,
+          description: 'Call mom',
+          priority: 'Low',
+          __typename: 'Todo'
+        },
+      ],
+    };
+
+    const GET_TODOS_RESULT_2 = {
+      todos: [
+        {
+          id: 1,
+          description: 'Get milk!',
+          priority: 'High',
+          __typename: 'Todo'
+        },
+        {
+          id: 2,
+          description: 'Walk the dog',
+          priority: 'Medium',
+          __typename: 'Todo'
+        },
+        {
+          id: 3,
+          description: 'Call mom',
+          priority: 'Low',
+          __typename: 'Todo'
+        },
+      ],
+    };
+
+    itAsync('refetchQueries with operation names should update cache', async (resolve, reject) => {
+      const variables = { description: 'Get milk!' };
+      const mocks = [
+        {
+          request: {
+            query: GET_TODOS_QUERY,
+          },
+          result: { data: GET_TODOS_RESULT_1 },
+        },
+        {
+          request: {
+            query: CREATE_TODO_MUTATION,
+            variables,
+          },
+          result: {
+            data: CREATE_TODO_RESULT,
+          },
+        },
+        {
+          request: {
+            query: GET_TODOS_QUERY,
+          },
+          result: { data: GET_TODOS_RESULT_2 },
+        },
+      ];
+
+      const link = mockSingleLink(...mocks).setOnError(reject);
+      const client = new ApolloClient({
+        link,
+        cache: new InMemoryCache(),
+      });
+
+      let renderCount = 0;
+      const QueryComponent = () => {
+        const { loading, data } = useQuery(GET_TODOS_QUERY);
+        const [mutate] = useMutation(CREATE_TODO_MUTATION);
+        switch (++renderCount) {
+          case 1:
+            expect(loading).toBe(true);
+            expect(data).toBeUndefined();
+            break;
+          case 2:
+            expect(loading).toBe(false);
+            expect(data).toEqual(mocks[0].result.data);
+            setTimeout(() => {
+              act(() => {
+                mutate({
+                  variables,
+                  refetchQueries: ['getTodos'],
+                });
+              });
+            });
+            break;
+          case 3:
+          case 4:
+            expect(loading).toBe(false);
+            expect(data).toEqual(mocks[0].result.data);
+            break;
+          case 5:
+            expect(loading).toBe(false);
+            expect(data).toEqual(mocks[2].result.data);
+            break;
+          default:
+            reject("too many renders");
+        }
+
+        return null;
+      };
+
+      render(
+        <ApolloProvider client={client}>
+          <QueryComponent />
+        </ApolloProvider>
+      );
+
+      return wait(() => expect(renderCount).toBe(5))
+        .then(() => {
+          expect(client.readQuery({ query: GET_TODOS_QUERY}))
+            .toEqual(mocks[2].result.data);
+        })
+        .then(resolve, reject);
+    });
+
+    itAsync('refetchQueries with document nodes should update cache', async (resolve, reject) => {
+      const variables = { description: 'Get milk!' };
+      const mocks = [
+        {
+          request: {
+            query: GET_TODOS_QUERY,
+          },
+          result: { data: GET_TODOS_RESULT_1 },
+        },
+        {
+          request: {
+            query: CREATE_TODO_MUTATION,
+            variables,
+          },
+          result: {
+            data: CREATE_TODO_RESULT,
+          },
+        },
+        {
+          request: {
+            query: GET_TODOS_QUERY,
+          },
+          result: { data: GET_TODOS_RESULT_2 },
+        },
+      ];
+
+      const link = mockSingleLink(...mocks).setOnError(reject);
+      const client = new ApolloClient({
+        link,
+        cache: new InMemoryCache(),
+      });
+
+      let renderCount = 0;
+      const QueryComponent = () => {
+        const { loading, data } = useQuery(GET_TODOS_QUERY);
+        const [mutate] = useMutation(CREATE_TODO_MUTATION);
+        switch (++renderCount) {
+          case 1:
+            expect(loading).toBe(true);
+            expect(data).toBeUndefined();
+            break;
+          case 2:
+            expect(loading).toBe(false);
+            expect(data).toEqual(mocks[0].result.data);
+            setTimeout(() => {
+              act(() => {
+                mutate({
+                  variables,
+                  refetchQueries: [GET_TODOS_QUERY],
+                });
+              });
+            });
+            break;
+          case 3:
+          case 4:
+            expect(loading).toBe(false);
+            expect(data).toEqual(mocks[0].result.data);
+            break;
+          case 5:
+            expect(loading).toBe(false);
+            expect(data).toEqual(mocks[2].result.data);
+            break;
+          default:
+            reject("too many renders");
+        }
+
+        return null;
+      };
+
+      render(
+        <ApolloProvider client={client}>
+          <QueryComponent />
+        </ApolloProvider>
+      );
+
+      return wait(() => expect(renderCount).toBe(5))
+        .then(() => {
+          expect(client.readQuery({ query: GET_TODOS_QUERY}))
+            .toEqual(mocks[2].result.data);
+        })
+        .then(resolve, reject);
+    });
+
+    itAsync('refetchQueries should update cache after unmount', async (resolve, reject) => {
+      const variables = { description: 'Get milk!' };
+      const mocks = [
+        {
+          request: {
+            query: GET_TODOS_QUERY,
+          },
+          result: { data: GET_TODOS_RESULT_1 },
+        },
+        {
+          request: {
+            query: CREATE_TODO_MUTATION,
+            variables,
+          },
+          result: {
+            data: CREATE_TODO_RESULT,
+          },
+        },
+        {
+          request: {
+            query: GET_TODOS_QUERY,
+          },
+          result: { data: GET_TODOS_RESULT_2 },
+        },
+      ];
+
+      const link = mockSingleLink(...mocks).setOnError(reject);
+      const client = new ApolloClient({
+        link,
+        cache: new InMemoryCache(),
+      });
+
+      let unmount: Function;
+      let renderCount = 0;
+      const QueryComponent = () => {
+        const { loading, data } = useQuery(GET_TODOS_QUERY);
+        const [mutate] = useMutation(CREATE_TODO_MUTATION);
+        switch (++renderCount) {
+          case 1:
+            expect(loading).toBe(true);
+            expect(data).toBeUndefined();
+            break;
+          case 2:
+            expect(loading).toBe(false);
+            expect(data).toEqual(mocks[0].result.data);
+            setTimeout(() => {
+              act(() => {
+                mutate({
+                  variables,
+                  refetchQueries: ['getTodos'],
+                  update() {
+                    unmount();
+                  },
+                });
+              });
+            });
+            break;
+          case 3:
+            expect(loading).toBe(false);
+            expect(data).toEqual(mocks[0].result.data);
+            break;
+          default:
+            reject("too many renders");
+        }
+
+        return null;
+      };
+
+      ({unmount} = render(
+        <ApolloProvider client={client}>
+          <QueryComponent />
+        </ApolloProvider>
+      ));
+
+      return wait(() => expect(renderCount).toBe(3))
+        .then(() => {
+          expect(client.readQuery({ query: GET_TODOS_QUERY}))
+            .toEqual(mocks[2].result.data);
+        })
+        .then(resolve, reject);
     });
   });
 });

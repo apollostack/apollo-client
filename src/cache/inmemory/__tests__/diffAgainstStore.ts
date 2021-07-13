@@ -1,31 +1,17 @@
 import gql, { disableFragmentWarnings } from 'graphql-tag';
 
-import { defaultNormalizedCacheFactory, writeQueryToStore } from './helpers';
 import { StoreReader } from '../readFromStore';
 import { StoreWriter } from '../writeToStore';
 import { defaultDataIdFromObject } from '../policies';
 import { NormalizedCache, Reference } from '../types';
 import { InMemoryCache } from '../inMemoryCache';
+import {
+  defaultNormalizedCacheFactory,
+  writeQueryToStore,
+  withError,
+} from './helpers';
 
 disableFragmentWarnings();
-
-export function withError(func: Function, regex?: RegExp) {
-  let message: string = null as never;
-  const { error } = console;
-  console.error = (m: any) => {
-    message = m;
-  };
-
-  try {
-    const result = func();
-    if (regex) {
-      expect(message).toMatch(regex);
-    }
-    return result;
-  } finally {
-    console.error = error;
-  }
-}
 
 describe('diffing queries against the store', () => {
   const cache = new InMemoryCache({

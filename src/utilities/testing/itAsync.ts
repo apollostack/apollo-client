@@ -14,12 +14,13 @@ function wrap<TResult>(key?: "only" | "skip" | "todo") {
 }
 
 const wrappedIt = wrap();
-export function itAsync(...args: Parameters<typeof wrappedIt>) {
-  return wrappedIt.apply(this, args);
-}
 
-export namespace itAsync {
-  export const only = wrap("only");
-  export const skip = wrap("skip");
-  export const todo = wrap("todo");
-}
+export const itAsync = Object.assign(function (
+  ...args: Parameters<typeof wrappedIt>
+) {
+  return wrappedIt.apply(this, args);
+}, {
+  only: wrap("only"),
+  skip: wrap("skip"),
+  todo: wrap("todo"),
+});

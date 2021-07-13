@@ -1,4 +1,4 @@
-import React from 'react';
+import * as React from 'react';
 import { invariant } from 'ts-invariant';
 
 import { ApolloClient } from '../../core';

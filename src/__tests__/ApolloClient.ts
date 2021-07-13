@@ -12,7 +12,7 @@ import { Observable } from '../utilities';
 import { ApolloLink } from '../link/core';
 import { HttpLink } from '../link/http';
 import { InMemoryCache } from '../cache';
-import { stripSymbols } from '../testing';
+import { stripSymbols, withErrorSpy } from '../testing';
 import { TypedDocumentNode } from '@graphql-typed-document-node/core';
 
 describe('ApolloClient', () => {
@@ -834,7 +834,7 @@ describe('ApolloClient', () => {
       });
     });
 
-    it('should warn when the data provided does not match the query shape', () => {
+    withErrorSpy(it, 'should warn when the data provided does not match the query shape', () => {
       const client = new ApolloClient({
         link: ApolloLink.empty(),
         cache: new InMemoryCache({
@@ -843,28 +843,26 @@ describe('ApolloClient', () => {
         }),
       });
 
-      expect(() => {
-        client.writeQuery({
-          data: {
-            todos: [
-              {
-                id: '1',
-                name: 'Todo 1',
-                __typename: 'Todo',
-              },
-            ],
-          },
-          query: gql`
-            query {
-              todos {
-                id
-                name
-                description
-              }
+      client.writeQuery({
+        data: {
+          todos: [
+            {
+              id: '1',
+              name: 'Todo 1',
+              __typename: 'Todo',
+            },
+          ],
+        },
+        query: gql`
+          query {
+            todos {
+              id
+              name
+              description
             }
-          `,
-        });
-      }).toThrowError(/Missing field 'description' /);
+          }
+        `,
+      });
     });
   });
 
@@ -1119,7 +1117,7 @@ describe('ApolloClient', () => {
       });
     });
 
-    it('should warn when the data provided does not match the fragment shape', () => {
+    withErrorSpy(it, 'should warn when the data provided does not match the fragment shape', () => {
       const client = new ApolloClient({
         link: ApolloLink.empty(),
         cache: new InMemoryCache({
@@ -1128,18 +1126,16 @@ describe('ApolloClient', () => {
         }),
       });
 
-      expect(() => {
-        client.writeFragment({
-          data: { __typename: 'Bar', i: 10 },
-          id: 'bar',
-          fragment: gql`
-            fragment fragmentBar on Bar {
-              i
-              e
-            }
-          `,
-        });
-      }).toThrowError(/Missing field 'e' /);
+      client.writeFragment({
+        data: { __typename: 'Bar', i: 10 },
+        id: 'bar',
+        fragment: gql`
+          fragment fragmentBar on Bar {
+            i
+            e
+          }
+        `,
+      });
     });
 
     describe('change will call observable next', () => {

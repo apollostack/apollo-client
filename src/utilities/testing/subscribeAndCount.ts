@@ -1,12 +1,15 @@
 import { ObservableQuery } from '../../core/ObservableQuery';
-import { ApolloQueryResult } from '../../core/types';
+import { ApolloQueryResult, OperationVariables } from '../../core/types';
 import { ObservableSubscription } from '../../utilities/observables/Observable';
 import { asyncMap } from '../../utilities/observables/asyncMap';
 
-export default function subscribeAndCount(
+export default function subscribeAndCount<
+  TData,
+  TVariables = OperationVariables,
+>(
   reject: (reason: any) => any,
-  observable: ObservableQuery<any>,
-  cb: (handleCount: number, result: ApolloQueryResult<any>) => any,
+  observable: ObservableQuery<TData, TVariables>,
+  cb: (handleCount: number, result: ApolloQueryResult<TData>) => any,
 ): ObservableSubscription {
   // Use a Promise queue to prevent callbacks from being run out of order.
   let queue = Promise.resolve();
@@ -14,7 +17,7 @@ export default function subscribeAndCount(
 
   const subscription = asyncMap(
     observable,
-    (result: ApolloQueryResult<any>) => {
+    (result: ApolloQueryResult<TData>) => {
       // All previous asynchronous callbacks must complete before cb can
       // be invoked with this result.
       return queue = queue.then(() => {

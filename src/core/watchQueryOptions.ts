@@ -1,10 +1,16 @@
 import { DocumentNode } from 'graphql';
 import { TypedDocumentNode } from '@graphql-typed-document-node/core';
 
-import { ApolloCache } from '../cache';
 import { FetchResult } from '../link/core';
-import { MutationQueryReducersMap } from './types';
-import { PureQueryOptions, OperationVariables } from './types';
+import {
+  DefaultContext,
+  MutationQueryReducersMap,
+  OperationVariables,
+  MutationUpdaterFunction,
+  OnQueryUpdated,
+  InternalRefetchQueriesInclude,
+} from './types';
+import { ApolloCache } from '../cache';
 
 /**
  * fetchPolicy determines where the client may return a result from. The options are:
@@ -23,6 +29,8 @@ export type FetchPolicy =
   | 'standby';
 
 export type WatchQueryFetchPolicy = FetchPolicy | 'cache-and-network';
+
+export type RefetchWritePolicy = "merge" | "overwrite";
 
 /**
  * errorPolicy determines the level of events for errors in the execution result. The options are:
@@ -88,6 +96,13 @@ export interface QueryOptions<TVariables = OperationVariables, TData = any> {
    * Apollo Client `QueryManager` (due to a cache miss).
    */
   partialRefetch?: boolean;
+
+  /**
+   * Whether to canonize cache results before returning them. Canonization
+   * takes some extra time, but it speeds up future deep equality comparisons.
+   * Defaults to true.
+   */
+  canonizeResults?: boolean;
 }
 
 /**
@@ -106,11 +121,18 @@ export interface WatchQueryOptions<TVariables = OperationVariables, TData = any>
     this: WatchQueryOptions<TVariables, TData>,
     lastFetchPolicy: WatchQueryFetchPolicy,
   ) => WatchQueryFetchPolicy);
+  /**
+   * Specifies whether a {@link NetworkStatus.refetch} operation should merge
+   * incoming field data with existing data, or overwrite the existing data.
+   * Overwriting is probably preferable, but merging is currently the default
+   * behavior, for backwards compatibility with Apollo Client 3.x.
+   */
+  refetchWritePolicy?: RefetchWritePolicy;
 }
 
-export interface FetchMoreQueryOptions<TVariables, K extends keyof TVariables, TData = any> {
+export interface FetchMoreQueryOptions<TVariables, TData = any> {
   query?: DocumentNode | TypedDocumentNode<TData, TVariables>;
-  variables?: Pick<TVariables, K>;
+  variables?: Partial<TVariables>;
   context?: any;
 }
 
@@ -135,7 +157,7 @@ export type SubscribeToMoreOptions<
   variables?: TSubscriptionVariables;
   updateQuery?: UpdateQueryFn<TData, TSubscriptionVariables, TSubscriptionData>;
   onError?: (error: Error) => void;
-  context?: Record<string, any>;
+  context?: DefaultContext;
 };
 
 export interface SubscriptionOptions<TVariables = OperationVariables, TData = any> {
@@ -164,14 +186,14 @@ export interface SubscriptionOptions<TVariables = OperationVariables, TData = an
   /**
    * Context object to be passed through the link execution chain.
    */
-  context?: Record<string, any>;
+  context?: DefaultContext;
 }
 
-export type RefetchQueryDescription = Array<string | PureQueryOptions>;
-
 export interface MutationBaseOptions<
-  T = { [key: string]: any },
-  TVariables = OperationVariables
+  TData = any,
+  TVariables = OperationVariables,
+  TContext = DefaultContext,
+  TCache extends ApolloCache<any> = ApolloCache<any>,
 > {
   /**
    * An object that represents the result of this mutation that will be
@@ -180,7 +202,7 @@ export interface MutationBaseOptions<
    * the result of a mutation immediately, and update the UI later if any errors
    * appear.
    */
-  optimisticResponse?: T | ((vars: TVariables) => T);
+  optimisticResponse?: TData | ((vars: TVariables) => TData);
 
   /**
    * A {@link MutationQueryReducersMap}, which is map from query names to
@@ -188,7 +210,7 @@ export interface MutationBaseOptions<
    * results of the mutation into the results of queries that are currently
    * being watched by your application.
    */
-  updateQueries?: MutationQueryReducersMap<T>;
+  updateQueries?: MutationQueryReducersMap<TData>;
 
   /**
    * A list of query names which will be refetched once this mutation has
@@ -199,8 +221,8 @@ export interface MutationBaseOptions<
    * once these queries return.
    */
   refetchQueries?:
-    | ((result: FetchResult<T>) => RefetchQueryDescription)
-    | RefetchQueryDescription;
+    | ((result: FetchResult<TData>) => InternalRefetchQueriesInclude)
+    | InternalRefetchQueriesInclude;
 
   /**
    * By default, `refetchQueries` does not wait for the refetched queries to
@@ -230,7 +252,13 @@ export interface MutationBaseOptions<
    * and you don't need to update the store, use the Promise returned from
    * `client.mutate` instead.
    */
-  update?: MutationUpdaterFn<T>;
+  update?: MutationUpdaterFunction<TData, TVariables, TContext, TCache>;
+
+  /**
+   * A function that will be called for each ObservableQuery affected by
+   * this mutation, after the mutation has completed.
+   */
+  onQueryUpdated?: OnQueryUpdated<any>;
 
   /**
    * Specifies the {@link ErrorPolicy} to be used for this operation
@@ -242,29 +270,31 @@ export interface MutationBaseOptions<
    * GraphQL document to that variable's value.
    */
   variables?: TVariables;
-}
-
-export interface MutationOptions<
-  T = { [key: string]: any },
-  TVariables = OperationVariables
-> extends MutationBaseOptions<T, TVariables> {
-  /**
-   * A GraphQL document, often created with `gql` from the `graphql-tag`
-   * package, that contains a single mutation inside of it.
-   */
-  mutation: DocumentNode | TypedDocumentNode<T, TVariables>;
 
   /**
    * The context to be passed to the link execution chain. This context will
-   * only be used with the mutation. It will not be used with
+   * only be used with this mutation. It will not be used with
    * `refetchQueries`. Refetched queries use the context they were
    * initialized with (since the intitial context is stored as part of the
    * `ObservableQuery` instance). If a specific context is needed when
    * refetching queries, make sure it is configured (via the
-   * [`query` `context` option](https://www.apollographql.com/docs/react/api/apollo-client#ApolloClient.query))
+   * [query `context` option](https://www.apollographql.com/docs/react/api/apollo-client#ApolloClient.query))
    * when the query is first initialized/run.
    */
-  context?: any;
+   context?: TContext;
+}
+
+export interface MutationOptions<
+  TData = any,
+  TVariables = OperationVariables,
+  TContext = DefaultContext,
+  TCache extends ApolloCache<any> = ApolloCache<any>,
+> extends MutationBaseOptions<TData, TVariables, TContext, TCache> {
+  /**
+   * A GraphQL document, often created with `gql` from the `graphql-tag`
+   * package, that contains a single mutation inside of it.
+   */
+  mutation: DocumentNode | TypedDocumentNode<TData, TVariables>;
 
   /**
    * Specifies the {@link FetchPolicy} to be used for this query. Mutations only
@@ -273,10 +303,15 @@ export interface MutationOptions<
    * behavior.
    */
   fetchPolicy?: Extract<FetchPolicy, 'no-cache'>;
-}
 
-// Add a level of indirection for `typedoc`.
-export type MutationUpdaterFn<T = { [key: string]: any }> = (
-  cache: ApolloCache<T>,
-  mutationResult: FetchResult<T>,
-) => void;
+  /**
+   * To avoid retaining sensitive information from mutation root field
+   * arguments, Apollo Client v3.4+ automatically clears any `ROOT_MUTATION`
+   * fields from the cache after each mutation finishes. If you need this
+   * information to remain in the cache, you can prevent the removal by passing
+   * `keepRootFields: true` to the mutation. `ROOT_MUTATION` result data are
+   * also passed to the mutation `update` function, so we recommend obtaining
+   * the results that way, rather than using this option, if possible.
+   */
+  keepRootFields?: boolean;
+}

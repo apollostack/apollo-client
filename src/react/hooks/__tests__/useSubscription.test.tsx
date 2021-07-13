@@ -5,7 +5,7 @@ import gql from 'graphql-tag';
 import { ApolloClient, ApolloLink, concat } from '../../../core';
 import { InMemoryCache as Cache } from '../../../cache';
 import { ApolloProvider } from '../../context';
-import { MockSubscriptionLink } from '../../../testing';
+import { MockSubscriptionLink, withErrorSpy } from '../../../testing';
 import { useSubscription } from '../useSubscription';
 
 describe('useSubscription Hook', () => {
@@ -441,7 +441,7 @@ describe('useSubscription Hook', () => {
     });
   });
 
-  it('should handle immediate completions gracefully', () => {
+  withErrorSpy(it, 'should handle immediate completions gracefully', () => {
     const subscription = gql`
       subscription {
         car {
@@ -452,7 +452,7 @@ describe('useSubscription Hook', () => {
 
     const result = {
       result: { data: null },
-    }
+    };
 
     const link = new MockSubscriptionLink();
     const client = new ApolloClient({
@@ -496,7 +496,7 @@ describe('useSubscription Hook', () => {
     });
   });
 
-  it('should handle immediate completions with multiple subscriptions gracefully', () => {
+  withErrorSpy(it, 'should handle immediate completions with multiple subscriptions gracefully', () => {
     const subscription = gql`
       subscription {
         car {
@@ -507,7 +507,7 @@ describe('useSubscription Hook', () => {
 
     const result = {
       result: { data: null },
-    }
+    };
 
     const link = new MockSubscriptionLink();
     const client = new ApolloClient({

@@ -1,4 +1,4 @@
-import PropTypes from 'prop-types';
+import * as PropTypes from 'prop-types';
 
 import { OperationVariables } from '../../core';
 import { QueryComponentOptions } from './types';
@@ -9,7 +9,7 @@ export function Query<TData = any, TVariables = OperationVariables>(
 ) {
   const { children, query, ...options } = props;
   const result = useQuery(query, options);
-  return children && result ? children(result) : null;
+  return result ? children(result) : null;
 }
 
 export interface Query<TData, TVariables> {
@@ -29,4 +29,4 @@ Query.propTypes = {
   ssr: PropTypes.bool,
   partialRefetch: PropTypes.bool,
   returnPartialData: PropTypes.bool
-};
+} as Query<any, any>["propTypes"];

@@ -1,4 +1,4 @@
-import PropTypes from 'prop-types';
+import * as PropTypes from 'prop-types';
 
 import { OperationVariables } from '../../core';
 import { SubscriptionComponentOptions } from './types';
@@ -22,4 +22,4 @@ Subscription.propTypes = {
   onSubscriptionData: PropTypes.func,
   onSubscriptionComplete: PropTypes.func,
   shouldResubscribe: PropTypes.oneOfType([PropTypes.func, PropTypes.bool])
-};
+} as Subscription<any, any>["propTypes"];

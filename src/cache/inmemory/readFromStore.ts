@@ -21,9 +21,11 @@ import {
   getFragmentDefinitions,
   getMainDefinition,
   getQueryDefinition,
-  maybeDeepFreeze,
   mergeDeepArray,
   getFragmentFromSelection,
+  maybeDeepFreeze,
+  isNonNullObject,
+  canUseWeakMap,
 } from '../../utilities';
 import { Cache } from '../core/types/Cache';
 import {
@@ -31,20 +33,21 @@ import {
   NormalizedCache,
   ReadMergeModifyContext,
 } from './types';
-import { supportsResultCaching } from './entityStore';
+import { maybeDependOnExistenceOfEntity, supportsResultCaching } from './entityStore';
 import { getTypenameFromStoreObject } from './helpers';
 import { Policies } from './policies';
 import { InMemoryCache } from './inMemoryCache';
 import { MissingFieldError } from '../core/types/common';
+import { canonicalStringify, ObjectCanon } from './object-canon';
 
 export type VariableMap = { [name: string]: any };
 
 interface ReadContext extends ReadMergeModifyContext {
   query: DocumentNode;
   policies: Policies;
+  canonizeResults: boolean;
   fragmentMap: FragmentMap;
   path: (string | number)[];
-  clientOnly: boolean;
 };
 
 export type ExecResult<R = any> = {
@@ -60,7 +63,6 @@ function missingFromInvariant(
     err.message,
     context.path.slice(),
     context.query,
-    context.clientOnly,
     context.variables,
   );
 }
@@ -68,23 +70,151 @@ function missingFromInvariant(
 type ExecSelectionSetOptions = {
   selectionSet: SelectionSetNode;
   objectOrReference: StoreObject | Reference;
+  enclosingRef: Reference;
   context: ReadContext;
 };
 
 type ExecSubSelectedArrayOptions = {
   field: FieldNode;
   array: any[];
+  enclosingRef: Reference;
   context: ReadContext;
 };
 
 export interface StoreReaderConfig {
   cache: InMemoryCache,
   addTypename?: boolean;
+  resultCacheMaxSize?: number;
+  canon?: ObjectCanon;
+}
+
+// Arguments type after keyArgs translation.
+type ExecSelectionSetKeyArgs = [
+  SelectionSetNode,
+  StoreObject | Reference,
+  ReadMergeModifyContext,
+  boolean,
+];
+
+function execSelectionSetKeyArgs(
+  options: ExecSelectionSetOptions,
+): ExecSelectionSetKeyArgs {
+  return [
+    options.selectionSet,
+    options.objectOrReference,
+    options.context,
+    // We split out this property so we can pass different values
+    // independently without modifying options.context itself.
+    options.context.canonizeResults,
+  ];
 }
 
 export class StoreReader {
-  constructor(private config: StoreReaderConfig) {
-    this.config = { addTypename: true, ...config };
+  // cached version of executeSelectionset
+  private executeSelectionSet: OptimisticWrapperFunction<
+    [ExecSelectionSetOptions], // Actual arguments tuple type.
+    ExecResult, // Actual return type.
+    ExecSelectionSetKeyArgs
+  >;
+
+  // cached version of executeSubSelectedArray
+  private executeSubSelectedArray: OptimisticWrapperFunction<
+    [ExecSubSelectedArrayOptions],
+    ExecResult<any>,
+    [ExecSubSelectedArrayOptions]>;
+
+  private config: {
+    cache: InMemoryCache,
+    addTypename: boolean;
+    resultCacheMaxSize?: number;
+  };
+
+  private knownResults = new (
+    canUseWeakMap ? WeakMap : Map
+  )<Record<string, any>, SelectionSetNode>();
+
+  public canon: ObjectCanon;
+  public resetCanon() {
+    this.canon = new ObjectCanon;
+  }
+
+  constructor(config: StoreReaderConfig) {
+    this.config = {
+      ...config,
+      addTypename: config.addTypename !== false,
+    };
+
+    this.canon = config.canon || new ObjectCanon;
+
+    this.executeSelectionSet = wrap(options => {
+      const { canonizeResults } = options.context;
+
+      const peekArgs = execSelectionSetKeyArgs(options);
+
+      // Negate this boolean option so we can find out if we've already read
+      // this result using the other boolean value.
+      peekArgs[3] = !canonizeResults;
+
+      const other = this.executeSelectionSet.peek(...peekArgs);
+
+      if (other) {
+        if (canonizeResults) {
+          return {
+            ...other,
+            // If we previously read this result without canonizing it, we can
+            // reuse that result simply by canonizing it now.
+            result: this.canon.admit(other.result),
+          };
+        }
+        // If we previously read this result with canonization enabled, we can
+        // return that canonized result as-is.
+        return other;
+      }
+
+      maybeDependOnExistenceOfEntity(
+        options.context.store,
+        options.enclosingRef.__ref,
+      );
+
+      // Finally, if we didn't find any useful previous results, run the real
+      // execSelectionSetImpl method with the given options.
+      return this.execSelectionSetImpl(options);
+
+    }, {
+      max: this.config.resultCacheMaxSize,
+      keyArgs: execSelectionSetKeyArgs,
+      // Note that the parameters of makeCacheKey are determined by the
+      // array returned by keyArgs.
+      makeCacheKey(selectionSet, parent, context, canonizeResults) {
+        if (supportsResultCaching(context.store)) {
+          return context.store.makeCacheKey(
+            selectionSet,
+            isReference(parent) ? parent.__ref : parent,
+            context.varString,
+            canonizeResults,
+          );
+        }
+      }
+    });
+
+    this.executeSubSelectedArray = wrap((options: ExecSubSelectedArrayOptions) => {
+      maybeDependOnExistenceOfEntity(
+        options.context.store,
+        options.enclosingRef.__ref,
+      );
+      return this.execSubSelectedArrayImpl(options);
+    }, {
+      max: this.config.resultCacheMaxSize,
+      makeCacheKey({ field, array, context }) {
+        if (supportsResultCaching(context.store)) {
+          return context.store.makeCacheKey(
+            field,
+            array,
+            context.varString,
+          );
+        }
+      }
+    });
   }
 
   /**
@@ -100,26 +230,29 @@ export class StoreReader {
     rootId = 'ROOT_QUERY',
     variables,
     returnPartialData = true,
+    canonizeResults = true,
   }: DiffQueryAgainstStoreOptions): Cache.DiffResult<T> {
     const policies = this.config.cache.policies;
 
     variables = {
       ...getDefaultValues(getQueryDefinition(query)),
-      ...variables,
+      ...variables!,
     };
 
+    const rootRef = makeReference(rootId);
     const execResult = this.executeSelectionSet({
       selectionSet: getMainDefinition(query).selectionSet,
-      objectOrReference: makeReference(rootId),
+      objectOrReference: rootRef,
+      enclosingRef: rootRef,
       context: {
         store,
         query,
         policies,
         variables,
-        varString: JSON.stringify(variables),
+        varString: canonicalStringify(variables),
+        canonizeResults,
         fragmentMap: createFragmentMap(getFragmentDefinitions(query)),
         path: [],
-        clientOnly: false,
       },
     });
 
@@ -144,7 +277,15 @@ export class StoreReader {
   ): boolean {
     if (supportsResultCaching(context.store) &&
         this.knownResults.get(result) === selectionSet) {
-      const latest = this.executeSelectionSet.peek(selectionSet, parent, context);
+      const latest = this.executeSelectionSet.peek(
+        selectionSet,
+        parent,
+        context,
+        // If result is canonical, then it could only have been previously
+        // cached by the canonizing version of executeSelectionSet, so we can
+        // avoid checking both possibilities here.
+        this.canon.isKnown(result),
+      );
       if (latest && result === latest.result) {
         return true;
       }
@@ -152,44 +293,18 @@ export class StoreReader {
     return false;
   }
 
-  // Cached version of execSelectionSetImpl.
-  private executeSelectionSet: OptimisticWrapperFunction<
-    [ExecSelectionSetOptions], // Actual arguments tuple type.
-    ExecResult, // Actual return type.
-    // Arguments type after keyArgs translation.
-    [SelectionSetNode, StoreObject | Reference, ReadMergeModifyContext]
-  > = wrap(options => this.execSelectionSetImpl(options), {
-    keyArgs(options) {
-      return [
-        options.selectionSet,
-        options.objectOrReference,
-        options.context,
-      ];
-    },
-    // Note that the parameters of makeCacheKey are determined by the
-    // array returned by keyArgs.
-    makeCacheKey(selectionSet, parent, context) {
-      if (supportsResultCaching(context.store)) {
-        return context.store.makeCacheKey(
-          selectionSet,
-          isReference(parent) ? parent.__ref : parent,
-          context.varString,
-        );
-      }
-    }
-  });
-
   // Uncached version of executeSelectionSet.
   private execSelectionSetImpl({
     selectionSet,
     objectOrReference,
+    enclosingRef,
     context,
   }: ExecSelectionSetOptions): ExecResult {
     if (isReference(objectOrReference) &&
         !context.policies.rootTypenamesById[objectOrReference.__ref] &&
         !context.store.has(objectOrReference.__ref)) {
       return {
-        result: {},
+        result: this.canon.empty,
         missing: [missingFromInvariant(
           new InvariantError(
             `Dangling reference to missing ${objectOrReference.__ref} object`
@@ -240,20 +355,6 @@ export class StoreReader {
         const resultName = resultKeyNameFromField(selection);
         context.path.push(resultName);
 
-        // If this field has an @client directive, then the field and
-        // everything beneath it is client-only, meaning it will never be
-        // sent to the server.
-        const wasClientOnly = context.clientOnly;
-        // Once we enter a client-only subtree of the query, we can avoid
-        // repeatedly checking selection.directives.
-        context.clientOnly = wasClientOnly || !!(
-          // We don't use the hasDirectives helper here, because it looks
-          // for directives anywhere inside the AST node, whereas we only
-          // care about directives directly attached to this field.
-          selection.directives &&
-          selection.directives.some(d => d.name.value === "client")
-        );
-
         if (fieldValue === void 0) {
           if (!addTypenameToDocument.added(selection)) {
             getMissing().push(
@@ -274,21 +375,17 @@ export class StoreReader {
           fieldValue = handleMissing(this.executeSubSelectedArray({
             field: selection,
             array: fieldValue,
+            enclosingRef,
             context,
           }));
 
         } else if (!selection.selectionSet) {
           // If the field does not have a selection set, then we handle it
-          // as a scalar value. However, that value should not contain any
-          // Reference objects, and should be frozen in development, if it
-          // happens to be an object that is mutable.
-          if (process.env.NODE_ENV !== 'production') {
-            assertSelectionSetForIdValue(
-              context.store,
-              selection,
-              fieldValue,
-            );
-            maybeDeepFreeze(fieldValue);
+          // as a scalar value. To keep this.canon from canonicalizing
+          // this value, we use this.canon.pass to wrap fieldValue in a
+          // Pass object that this.canon.admit will later unwrap as-is.
+          if (context.canonizeResults) {
+            fieldValue = this.canon.pass(fieldValue);
           }
 
         } else if (fieldValue != null) {
@@ -298,6 +395,7 @@ export class StoreReader {
           fieldValue = handleMissing(this.executeSelectionSet({
             selectionSet: selection.selectionSet,
             objectOrReference: fieldValue as StoreObject | Reference,
+            enclosingRef: isReference(fieldValue) ? fieldValue : enclosingRef,
             context,
           }));
         }
@@ -305,8 +403,6 @@ export class StoreReader {
         if (fieldValue !== void 0) {
           objectsToMerge.push({ [resultName]: fieldValue });
         }
-
-        context.clientOnly = wasClientOnly;
 
         invariant(context.path.pop() === resultName);
 
@@ -324,11 +420,12 @@ export class StoreReader {
 
     // Perform a single merge at the end so that we can avoid making more
     // defensive shallow copies than necessary.
-    finalResult.result = mergeDeepArray(objectsToMerge);
-
-    if (process.env.NODE_ENV !== 'production') {
-      Object.freeze(finalResult.result);
-    }
+    const merged = mergeDeepArray(objectsToMerge);
+    finalResult.result = context.canonizeResults
+      ? this.canon.admit(merged)
+      // Since this.canon is normally responsible for freezing results (only in
+      // development), freeze them manually if canonization is disabled.
+      : maybeDeepFreeze(merged);
 
     // Store this result with its selection set so that we can quickly
     // recognize it again in the StoreReader#isFresh method.
@@ -337,27 +434,11 @@ export class StoreReader {
     return finalResult;
   }
 
-  private knownResults = new WeakMap<Record<string, any>, SelectionSetNode>();
-
-  // Cached version of execSubSelectedArrayImpl.
-  private executeSubSelectedArray = wrap((options: ExecSubSelectedArrayOptions) => {
-    return this.execSubSelectedArrayImpl(options);
-  }, {
-    makeCacheKey({ field, array, context }) {
-      if (supportsResultCaching(context.store)) {
-        return context.store.makeCacheKey(
-          field,
-          array,
-          context.varString,
-        );
-      }
-    }
-  });
-
   // Uncached version of executeSubSelectedArray.
   private execSubSelectedArrayImpl({
     field,
     array,
+    enclosingRef,
     context,
   }: ExecSubSelectedArrayOptions): ExecResult {
     let missing: MissingFieldError[] | undefined;
@@ -390,6 +471,7 @@ export class StoreReader {
         return handleMissing(this.executeSubSelectedArray({
           field,
           array: item,
+          enclosingRef,
           context,
         }), i);
       }
@@ -399,11 +481,12 @@ export class StoreReader {
         return handleMissing(this.executeSelectionSet({
           selectionSet: field.selectionSet,
           objectOrReference: item,
+          enclosingRef: isReference(item) ? item : enclosingRef,
           context,
         }), i);
       }
 
-      if (process.env.NODE_ENV !== 'production') {
+      if (__DEV__) {
         assertSelectionSetForIdValue(context.store, field, item);
       }
 
@@ -412,11 +495,10 @@ export class StoreReader {
       return item;
     });
 
-    if (process.env.NODE_ENV !== 'production') {
-      Object.freeze(array);
-    }
-
-    return { result: array, missing };
+    return {
+      result: context.canonizeResults ? this.canon.admit(array) : array,
+      missing,
+    };
   }
 }
 
@@ -428,7 +510,7 @@ function assertSelectionSetForIdValue(
   if (!field.selectionSet) {
     const workSet = new Set([fieldValue]);
     workSet.forEach(value => {
-      if (value && typeof value === "object") {
+      if (isNonNullObject(value)) {
         invariant(
           !isReference(value),
           `Missing selection set for object of type ${

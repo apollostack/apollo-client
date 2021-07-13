@@ -1,4 +1,4 @@
-import PropTypes from 'prop-types';
+import * as PropTypes from 'prop-types';
 
 import { OperationVariables } from '../../core';
 import { MutationComponentOptions } from './types';
@@ -30,5 +30,5 @@ Mutation.propTypes = {
   children: PropTypes.func.isRequired,
   onCompleted: PropTypes.func,
   onError: PropTypes.func,
-  fetchPolicy: PropTypes.string
-};
+  fetchPolicy: PropTypes.string,
+} as Mutation<any, any>["propTypes"];
