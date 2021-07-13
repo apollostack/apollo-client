@@ -203,6 +203,58 @@ describe('relayStylePagination', () => {
       });
     });
 
+    it('should merge incoming null with null', () => {
+      const existingEdges = [
+        { cursor: 'alpha', node: makeReference("fakeAlpha") },
+      ];
+      const result = merge(
+        {
+          edges: existingEdges,
+          pageInfo: {
+            hasPreviousPage: false,
+            hasNextPage: true,
+            startCursor: 'alpha',
+            endCursor: 'alpha'
+          },
+        }, null,
+        {
+          ...options,
+          args: {
+            after: 'alpha',
+          },
+        },
+      );
+
+      expect(result).toBeNull();
+    })
+
+    it('should replace existing null with incoming', () => {
+      const incomingEdges = [
+        { cursor: 'alpha', node: makeReference("fakeAlpha") },
+      ];
+      const incoming = {
+        edges: incomingEdges,
+        pageInfo: {
+          hasPreviousPage: false,
+          hasNextPage: true,
+          startCursor: 'alpha',
+          endCursor: 'alpha'
+        },
+      };
+      const result = merge(
+        null,
+        incoming,
+        {
+          ...options,
+          args: {
+            after: 'alpha',
+          },
+        },
+      );
+
+      expect(result).toEqual(incoming);
+    })
+
     it('should maintain extra PageInfo properties', () => {
       const existingEdges = [
         { cursor: 'alpha', node: makeReference("fakeAlpha") },
