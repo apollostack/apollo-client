@@ -1,14 +1,277 @@
-| Option | Type | Description |
-| - | - | - |
-| `mutation` | DocumentNode | A GraphQL mutation document parsed into an AST by `graphql-tag`. **Optional** for the `useMutation` Hook since the mutation can be passed in as the first parameter to the Hook. **Required** for the `Mutation` component. |
-| `variables` | { [key: string]: any } | An object containing all of the variables your mutation needs to execute |
-| `update` | (cache: ApolloCache, mutationResult: FetchResult) | A function used to update the cache after a mutation occurs |
-| `ignoreResults`| boolean | If true, the returned `data` property will not update with the mutation result. |
-| `optimisticResponse` | Object | Provide a [mutation response](/performance/optimistic-ui/) before the result comes back from the server |
-| `refetchQueries` | Array&lt;string\|{ query: DocumentNode, variables?: TVariables}&gt; \| ((mutationResult: FetchResult) => Array&lt;string\|{ query: DocumentNode, variables?: TVariables}&gt;) | An array or function that allows you to specify which queries you want to refetch after a mutation has occurred. Array values can either be queries (with optional variables) or just the string names of queries to be refetched. |
-| `awaitRefetchQueries` | boolean | Queries refetched as part of `refetchQueries` are handled asynchronously, and are not waited on before the mutation is completed (resolved). Setting this to `true` will make sure refetched queries are completed before the mutation is considered done. `false` by default. |
-| `onCompleted` | (data: TData) => void | A callback executed once your mutation successfully completes |
-| `onError` | (error: ApolloError) => void | A callback executed in the event of an error. |
-| `errorPolicy` | ErrorPolicy | How you want your component to handle network and GraphQL errors. Defaults to "none", which means we treat GraphQL errors as runtime errors. |
-| `context` | Record&lt;string, any&gt; | Shared context between your component and your network interface (Apollo Link). |
-| `client` | ApolloClient | An `ApolloClient` instance. By default `useMutation` / `Mutation` uses the client passed down via context, but a different client can be passed in. |
+<table class="field-table api-ref">
+  <thead>
+    <tr>
+      <th>Name /<br/>Type</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+
+<tr>
+<td colspan="2">
+
+**Operation options**
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+###### `mutation`
+
+`DocumentNode`
+</td>
+
+<td>
+
+A GraphQL query string parsed into an AST with the `gql` template literal.
+
+**Optional** for the `useMutation` hook, because the mutation can be provided as the first parameter to the hook. **Required** for the `Mutation` component.
+</td>
+</tr>
+
+<tr>
+<td>
+
+###### `variables`
+
+`{ [key: string]: any }`
+</td>
+
+<td>
+
+An object containing all of the GraphQL variables your mutation requires to execute.
+
+Each key in the object corresponds to a variable name, and that key's value corresponds to the variable value.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+###### `errorPolicy`
+
+`ErrorPolicy`
+</td>
+
+<td>
+
+Specifies how the mutation handles a response that returns both GraphQL errors and partial results.
+
+For details, see [GraphQL error policies](https://www.apollographql.com/docs/react/data/error-handling/#graphql-error-policies).
+
+The default value is `none`, meaning that the mutation result includes error details but _not_ partial results.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+###### `onCompleted`
+
+`(data: TData | {}) => void`
+</td>
+
+<td>
+
+A callback function that's called when your mutation successfully completes with zero errors (or if `errorPolicy` is `ignore` and partial data is returned).
+
+This function is passed the mutation's result `data`.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+###### `onError`
+
+`(error: ApolloError) => void`
+</td>
+
+<td>
+
+A callback function that's called when the mutation encounters one or more errors (unless `errorPolicy` is `ignore`).
+
+This function is passed an [`ApolloError`](https://github.com/apollographql/apollo-client/blob/d96f4578f89b933c281bb775a39503f6cdb59ee8/src/errors/index.ts#L36-L39) object that contains either a `networkError` object or a `graphQLErrors` array, depending on the error(s) that occurred.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+###### `onQueryUpdated`
+
+`(observableQuery: ObservableQuery, diff: Cache.DiffResult, lastDiff: Cache.DiffResult | undefined) => boolean | TResult`
+
+</td>
+
+<td>
+
+Optional callback for intercepting queries whose cache data has been updated by the mutation, as well as any queries specified in the [`refetchQueries: [...]`](#refetchQueries) list passed to `client.mutate`.
+
+Returning a `Promise` from `onQueryUpdated` will cause the final mutation `Promise` to await the returned `Promise`. Returning `false` causes the query to be ignored.
+
+</td>
+</tr>
+
+
+<tr>
+<td>
+
+###### `refetchQueries`
+
+`Array<string | { query: DocumentNode, variables?: TVariables}> | ((mutationResult: FetchResult) => Array<string | { query: DocumentNode, variables?: TVariables}>)`
+</td>
+
+<td>
+
+An array or a function that _returns_ an array that specifies which queries you want to refetch after the mutation occurs.
+
+Each array value can be either:
+
+* An object containing the `query` to execute, along with any `variables`
+* A string indicating the operation name of the query to refetch
+
+</td>
+</tr>
+
+
+<tr>
+<td>
+
+###### `awaitRefetchQueries`
+
+`boolean`
+</td>
+
+<td>
+
+If `true`, makes sure all queries included in `refetchQueries` are completed before the mutation is considered complete.
+
+The default value is `false` (queries are refetched asynchronously).
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+###### `ignoreResults`
+
+`boolean`
+</td>
+
+<td>
+
+If `true`, the mutation's `data` property is not updated with the mutation's result.
+
+The default value is `false`.
+
+</td>
+</tr>
+
+<tr>
+<td colspan="2">
+
+**Networking options**
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+###### `notifyOnNetworkStatusChange`
+
+`boolean`
+</td>
+
+<td>
+
+If `true`, the in-progress mutation's associated component re-renders whenever the network status changes or a network error occurs.
+
+The default value is `false`.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+###### `client`
+
+`ApolloClient`
+</td>
+
+<td>
+
+The instance of `ApolloClient` to use to execute the mutation.
+
+By default, the instance that's passed down via context is used, but you can provide a different instance here.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+###### `context`
+
+`Record<string, any>`
+</td>
+
+<td>
+
+If you're using [Apollo Link](https://www.apollographql.com/docs/react/api/link/introduction/), this object is the initial value of the `context` object that's passed along your link chain.
+
+</td>
+</tr>
+
+<tr>
+<td colspan="2">
+
+**Caching options**
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+###### `update`
+
+`(cache: ApolloCache, mutationResult: FetchResult) => void`
+</td>
+
+<td>
+
+A function used to update the Apollo Client cache after the mutation completes.
+
+For more information, see [Updating the cache after a mutation](/data/mutations#updating-the-cache-after-a-mutation).
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+###### `optimisticResponse`
+
+`Object`
+</td>
+
+<td>
+
+If provided, Apollo Client caches this temporary (and potentially incorrect) response until the mutation completes, enabling more responsive UI updates.
+
+For more information, see [Optimistic mutation results](/performance/optimistic-ui/).
+
+</td>
+</tr>
+</tbody>
+</table>

@@ -4,12 +4,12 @@ sidebar_title: 'Components (deprecated)'
 description: Deprecated React Apollo render prop component API
 ---
 
-import QueryOptions from '../../../shared/query-options.mdx';
-import QueryResult from '../../../shared/query-result.mdx';
-import MutationOptions from '../../../shared/mutation-options.mdx';
-import MutationResult from '../../../shared/mutation-result.mdx';
-import SubscriptionOptions from '../../../shared/subscription-options.mdx';
-import SubscriptionResult from '../../../shared/subscription-result.mdx';
+import QueryOptions3 from '../../../shared/query-options.mdx';
+import QueryResult3 from '../../../shared/query-result.mdx';
+import MutationOptions3 from '../../../shared/mutation-options.mdx';
+import MutationResult3 from '../../../shared/mutation-result.mdx';
+import SubscriptionOptions3 from '../../../shared/subscription-options.mdx';
+import SubscriptionResult3 from '../../../shared/subscription-result.mdx';
 
 > **Note:** Official support for React Apollo render prop components ended in March 2020. This library is still included in the `@apollo/client` package, but it no longer receives feature updates or bug fixes.
 
@@ -29,25 +29,25 @@ You then import the library's symbols from `@apollo/client/react/components`.
 
 The `Query` component accepts the following props. `query` is **required**.
 
-<QueryOptions />
+<QueryOptions3 />
 
 ### Render prop function
 
 The render prop function that you pass to the `children` prop of `Query` is called with an object (`QueryResult`) that has the following properties. This object contains your query result, plus some helpful functions for refetching, dynamic polling, and pagination.
 
-<QueryResult />
+<QueryResult3 />
 
 ## `Mutation`
 
 The Mutation component accepts the following props. Only `mutation` is **required**.
 
-<MutationOptions />
+<MutationOptions3 />
 
 ### Render prop function
 
 The render prop function that you pass to the `children` prop of `Mutation` is called with the `mutate` function and an object with the mutation result. The `mutate` function is how you trigger the mutation from your UI. The object contains your mutation result, plus loading and error state.
 
-<MutationResult />
+<MutationResult3 />
 
 ## `Subscription`
 
@@ -55,10 +55,10 @@ The render prop function that you pass to the `children` prop of `Mutation` is c
 
 The Subscription component accepts the following props. Only `subscription` is **required**.
 
-<SubscriptionOptions />
+<SubscriptionOptions3 />
 
 ### Render prop function
 
 The render prop function that you pass to the `children` prop of `Subscription` is called with an object that has the following properties.
 
-<SubscriptionResult />
+<SubscriptionResult3 />

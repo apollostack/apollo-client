@@ -536,7 +536,6 @@ export class ApolloClient<TCacheShape> implements DataProxy {
    * their queries again using your network interface. If you do not want to
    * re-execute any queries then you should make sure to stop watching any
    * active queries.
-   * Takes optional parameter `includeStandby` which will include queries in standby-mode when refetching.
    */
   public refetchQueries<
     TCache extends ApolloCache<any> = ApolloCache<TCacheShape>,

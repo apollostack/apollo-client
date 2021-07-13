@@ -1,15 +1,126 @@
 **Mutate function:**
 
-| Property | Type | Description |
-| - | - | - |
-| `mutate` | (options?: MutationOptions) => Promise&lt;FetchResult&gt; | A function to trigger a mutation from your UI. You can optionally pass `awaitRefetchQueries`, `context`, `fetchPolicy`, `optimisticResponse`, `refetchQueries`, `update`, and `variables` in as options, which will override options/props passed to `useMutation` / `Mutation`. The function returns a promise that fulfills with your mutation result. |
+<table class="field-table api-ref">
+  <thead>
+    <tr>
+      <th>Name /<br/>Type</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+<tr>
+<td>
+
+###### `mutate`
+
+`(options?: MutationOptions) => Promise<FetchResult>`
+</td>
+
+<td>
+
+A function to trigger the mutation from your UI. You can optionally pass this function any of the following options:
+
+* `awaitRefetchQueries`
+* `context`
+* `fetchPolicy`
+* `optimisticResponse`
+* `refetchQueries`
+* `update`
+* `variables`
+
+Any option you pass here overrides any existing value for that option that you passed to `useMutation`.
+
+The mutate function returns a promise that fulfills with your mutation result.
+</td>
+</tr>
+  </tbody>
+</table>
 
 **Mutation result:**
 
-| Property | Type | Description |
-| - | - | - |
-| `data` | TData | The data returned from your mutation. It can be undefined if `ignoreResults` is true. |
-| `loading` | boolean | A boolean indicating whether your mutation is in flight |
-| `error` | ApolloError | Any errors returned from the mutation |
-| `called` | boolean | A boolean indicating if the mutate function has been called |
-| `client` | ApolloClient | Your `ApolloClient` instance. Useful for invoking cache methods outside the context of the update function, such as `client.writeQuery` and `client.readQuery`. |
+<table class="field-table api-ref">
+  <thead>
+    <tr>
+      <th>Name /<br/>Type</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+<tr>
+<td>
+
+###### `data`
+
+`TData`
+</td>
+
+<td>
+
+The data returned from your mutation. Can be `undefined` if `ignoreResults` is `true`.
+</td>
+</tr>
+
+<tr>
+<td>
+
+###### `loading`
+
+`boolean`
+</td>
+
+<td>
+
+If `true`, the mutation is currently in flight.
+</td>
+</tr>
+
+<tr>
+<td>
+
+###### `error`
+
+`ApolloError`
+</td>
+
+<td>
+
+If the mutation produces one or more errors, this object contains either an array of `graphQLErrors` or a single `networkError`. Otherwise, this value is `undefined`.
+
+For more information, see [Handling operation errors](https://www.apollographql.com/docs/react/data/error-handling/).
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+###### `called`
+
+`boolean`
+</td>
+
+<td>
+
+If `true`, the mutation's mutate function has been called.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+###### `client`
+
+`ApolloClient`
+</td>
+
+<td>
+
+The instance of Apollo Client that executed the mutation.
+
+Can be useful for manually executing followup operations or writing data to the cache.
+
+</td>
+</tr>
+  </tbody>
+</table>
