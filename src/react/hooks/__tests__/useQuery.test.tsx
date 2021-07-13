@@ -1,4 +1,4 @@
-import React, { useState, useReducer, Fragment } from 'react';
+import React, { useState, useReducer, useEffect, Fragment } from 'react';
 import { DocumentNode, GraphQLError } from 'graphql';
 import gql from 'graphql-tag';
 import { render, cleanup, wait } from '@testing-library/react';
@@ -1574,6 +1574,95 @@ describe('useQuery Hook', () => {
 
       return wait(() => {
         expect(renderCount).toBe(6);
+      }).then(resolve, reject);
+    });
+
+    itAsync('should refetch when the query changes', (resolve, reject) => {
+      const queryA = gql`
+        query cars {
+          cars(id: 1) {
+            id
+            make
+          }
+        }
+      `;
+
+      const queryB = gql`
+        query cars {
+          cars(id: 1) {
+            id
+            model
+          }
+        }
+      `;
+
+      const carData = {
+        cars: [
+          {
+            id: 1,
+            make: 'Audi',
+            model: 'RS8',
+            __typename: 'Car'
+          }
+        ]
+      };
+
+      const mocks = [
+        {
+          request: { query: queryA },
+          result: { data: carData }
+        },
+        {
+          request: { query: queryB },
+          result: { data: carData }
+        },
+      ];
+
+      let renderCount = 0;
+      function App() {
+        const [query, setQuery] = useState(queryA);
+        const { loading, data } = useQuery(query);
+
+        useEffect(() => {
+          if (data && data.cars[0].make != null) {
+            setQuery(queryB);
+          }
+        }, [data]);
+
+        switch (renderCount) {
+          case 0:
+            expect(loading).toBeTruthy();
+            break;
+          case 1:
+            expect(loading).toBeFalsy();
+            expect(data.cars[0].make).toBe('Audi');
+            expect(data.cars[0].model).toBeUndefined();
+            break;
+          // Not sure why there are two renders for the new loading state
+          case 2:
+          case 3:
+            expect(loading).toBeTruthy();
+            break;
+          case 4:
+            expect(loading).toBeFalsy();
+            expect(data.cars[0].model).toBe('RS8');
+            expect(data.cars[0].make).toBeUndefined();
+          default:
+            break;
+        }
+
+        renderCount += 1;
+        return null;
+      }
+
+      render(
+        <MockedProvider mocks={mocks}>
+          <App />
+        </MockedProvider>
+      );
+
+      return wait(() => {
+        expect(renderCount).toBe(5);
       }).then(resolve, reject);
     });
   });
