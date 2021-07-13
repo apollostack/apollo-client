@@ -3,9 +3,9 @@ export { DocumentNode };
 
 import { Observable } from '../../utilities';
 
-export interface GraphQLRequest {
+export interface GraphQLRequest<TVariables = Record<string, any>> {
   query: DocumentNode;
-  variables?: Record<string, any>;
+  variables?: TVariables;
   operationName?: string;
   context?: Record<string, any>;
   extensions?: Record<string, any>;
