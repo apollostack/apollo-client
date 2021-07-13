@@ -7,7 +7,7 @@ As your application grows, you may find it helpful to include a type system to a
 
 These docs assume you already have TypeScript configured in your project, if not start [here](https://github.com/Microsoft/TypeScript-React-Conversion-Guide#typescript-react-conversion-guide).
 
-The most common need when using type systems with GraphQL is to type the results of an operation. Given that a GraphQL server's schema is strongly typed, we can even generate TypeScript definitions automatically using a tool like [apollo-codegen](https://github.com/apollographql/apollo-codegen). In these docs however, we will be writing result types manually.
+The most common need when using type systems with GraphQL is to type the results of an operation. Given that a GraphQL server's schema is strongly typed, we can even generate TypeScript definitions automatically using a tool like [Apollo CLI](https://github.com/apollographql/apollo-tooling#apollo-clientcodegen-output). In these docs, however, we will be writing result types manually.
 
 ## Typing hooks
 
