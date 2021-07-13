@@ -25,7 +25,7 @@ export interface FetchResult<
   C = Record<string, any>,
   E = Record<string, any>
 > extends ExecutionResult {
-  data?: TData | null;
+  data?: TData | null; // data might be undefined if errorPolicy was set to 'ignore'
   extensions?: E;
   context?: C;
 };
