@@ -140,9 +140,9 @@ action, as opposed to using a fixed interval.
 Let's add a button to our `DogPhoto` component that calls our query's
 `refetch` function whenever it's clicked.
 
-You can optionally provide a new `variables` object to
-the `refetch` function. If you don't (as is the case in the following example),
-the query uses the same variables that it used in its previous execution.
+You can optionally provide a new `variables` object to the `refetch` function.
+If you avoid passing a `variables` object and use only `refetch()`, the query
+uses the same `variables` that it used in its previous execution.
 
 ```jsx:title=index.js
 function DogPhoto({ breed }) {
@@ -156,7 +156,9 @@ function DogPhoto({ breed }) {
   return (
     <div>
       <img src={data.dog.displayImage} style={{ height: 100, width: 100 }} />
-      <button onClick={() => refetch()}>Refetch!</button>
+      <button onClick={
+        () => refetch({ breed: 'new_dog_breed' })
+      }>Refetch new breed!</button>
     </div>
   );
 }
@@ -192,7 +194,9 @@ function DogPhoto({ breed }) {
   return (
     <div>
       <img src={data.dog.displayImage} style={{ height: 100, width: 100 }} />
-      <button onClick={() => refetch()}>Refetch!</button>
+      <button onClick={
+        () => refetch({ breed: 'new_dog_breed' })
+      }>Refetch!</button>
     </div>
   );
 }
