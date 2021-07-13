@@ -207,7 +207,7 @@ The `networkStatus` property is a `NetworkStatus` enum that represents different
 ## Inspecting error states
 
 You can customize your query error handling by providing the `errorPolicy`
-configuration option to the `useQuery` hook. The default value is `none`, which tells Apollo Client to treat all GraphQL errors as runtime errors. In this case, Apollo Client discards any query response data returned by the server and sets the `error` property in the `useQuery` result object to `true`.
+configuration option to the `useQuery` hook. The default value is `none`, which tells Apollo Client to treat all GraphQL errors as runtime errors. In this case, Apollo Client discards any query response data returned by the server and sets the `data` object to `undefined` and put error data in `error` object of the `useQuery` result.
 
 If you set `errorPolicy` to `all`, `useQuery` does _not_ discard query response data, allowing you to render partial results.
 
