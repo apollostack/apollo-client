@@ -17,7 +17,9 @@ export namespace BatchHttpLink {
   export type Options = Pick<
     BatchLink.Options,
     'batchMax' | 'batchDebounce' | 'batchInterval' | 'batchKey'
-  > & HttpOptions;
+  > & HttpOptions & {
+    getContextForOperations?: (operations: Operation[]) => Record<string, any>
+  };
 }
 
 /**
@@ -42,6 +44,7 @@ export class BatchHttpLink extends ApolloLink {
       batchDebounce,
       batchMax,
       batchKey,
+      getContextForOperations = operations => operations[0].getContext(),
       ...requestOptions
     } = fetchParams || ({} as BatchHttpLink.Options);
 
@@ -69,7 +72,7 @@ export class BatchHttpLink extends ApolloLink {
     const batchHandler = (operations: Operation[]) => {
       const chosenURI = selectURI(operations[0], uri);
 
-      const context = operations[0].getContext();
+      const context = getContextForOperations(operations);
 
       const clientAwarenessHeaders: {
         'apollographql-client-name'?: string;
