@@ -94,14 +94,17 @@ When using Apollo Link, the ability to handle network errors is way more powerfu
 import { onError } from "apollo-link-error";
 
 const link = onError(({ graphQLErrors, networkError }) => {
-  if (graphQLErrors)
-    graphQLErrors.map(({ message, locations, path }) =>
+  if (graphQLErrors) {
+    graphQLErrors.forEach(({ message, locations, path }) => {
       console.log(
-        `[GraphQL error]: Message: ${message}, Location: ${locations}, Path: ${path}`,
-      ),
-    );
+        `[GraphQL error]: Message: ${message}, Location: ${JSON.stringify(locations)}, Path: ${path}`,
+      );
+    });
+  }
 
-  if (networkError) console.log(`[Network error]: ${networkError}`);
+  if (networkError) {
+    console.log(`[Network error]: ${networkError}`);
+  }
 });
 ```
 
