@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import gql from 'graphql-tag';
 import { ExecutionResult, GraphQLError } from 'graphql';
-import { render, cleanup, fireEvent, wait } from '@testing-library/react';
+import { render, cleanup, fireEvent, wait, act } from '@testing-library/react';
 
 import { ApolloClient } from '../../../../core';
 import { ApolloError } from '../../../../errors';
@@ -68,6 +68,10 @@ const cache = new Cache({ addTypename: false });
 
 describe('General Mutation testing', () => {
   afterEach(cleanup);
+
+  beforeEach(() => {
+    jest.useRealTimers();
+  });
 
   it('pick prop client over context client', async () => {
     const mock = (text: string) => [
@@ -1023,6 +1027,8 @@ describe('General Mutation testing', () => {
   });
 
   it('allows refetchQueries to be passed to the mutate function', async () => {
+    jest.useFakeTimers();
+
     const query = gql`
       query getTodo {
         todo {
@@ -1045,6 +1051,16 @@ describe('General Mutation testing', () => {
       __typename: 'Query'
     };
 
+    const queryData2 = {
+      todo: {
+        id: '1123',
+        text: 'todo from the refetch query',
+        completed: false,
+        __typename: 'Todo'
+      },
+      __typename: 'Query'
+    };
+
     const mocksWithQuery = [
       ...mocks,
       {
@@ -1053,7 +1069,7 @@ describe('General Mutation testing', () => {
       },
       {
         request: { query },
-        result: { data: queryData }
+        result: { data: queryData2 }
       },
     ];
 
@@ -1063,40 +1079,54 @@ describe('General Mutation testing', () => {
       }
     ];
 
-    let count = 0;
-    const Component = () => (
-      <Mutation mutation={mutation}>
-        {(createTodo: any, resultMutation: any) => (
-          <Query query={query}>
-            {(resultQuery: any) => {
-              if (count === 0) {
-                setTimeout(() => createTodo({ refetchQueries }));
-              } else if (count === 1) {
-                expect(resultMutation.loading).toBe(false);
-                expect(resultQuery.loading).toBe(false);
-              } else if (count === 2) {
-                expect(resultMutation.loading).toBe(true);
-                expect(stripSymbols(resultQuery.data)).toEqual(queryData);
-              } else if (count === 3) {
-                expect(resultMutation.loading).toBe(false);
-              }
-              count++;
-              return null;
-            }}
-          </Query>
-        )}
-      </Mutation>
+    const queryMock = jest.fn((resultQuery: any) => {
+      return null;
+    });
+    const mutationMock = jest.fn((createTodo: any, resultMutation: any) => {
+      return (
+        <Query query={query}>
+          {queryMock}
+        </Query>
+      );
+    });
+
+    const expectQuery = (obj: any) => expect(queryMock).lastCalledWith(
+      expect.objectContaining(obj)
+    );
+    const expectMutation = (obj: any) => expect(mutationMock).lastCalledWith(
+      expect.anything(),
+      expect.objectContaining(obj)
     );
 
     render(
       <MockedProvider mocks={mocksWithQuery}>
-        <Component />
+        <Mutation mutation={mutation}>
+          {mutationMock}
+        </Mutation>
       </MockedProvider>
     );
 
-    await wait(() => {
-      expect(count).toBe(4);
+    expectQuery({ loading: true });
+    expectMutation({ loading: false });
+    await act(async () => {
+      await jest.runAllTimers();
     });
+    expectQuery({ loading: false, data: queryData });
+    expectMutation({ loading: false });
+
+    act(() => {
+      const latestMutationCallArguments = mutationMock.mock.calls.slice(-1)[0];
+      const createTodo = latestMutationCallArguments[0];
+      createTodo({ refetchQueries });
+    });
+
+    expectQuery({ loading: false, data: queryData });
+    expectMutation({ loading: true });
+    await act(async () => {
+      await jest.runAllTimers();
+    });
+    expectQuery({ loading: false, data: queryData2 });
+    expectMutation({ loading: false });
   });
 
   it('has an update prop for updating the store after the mutation', async () => {
@@ -1236,6 +1266,7 @@ describe('General Mutation testing', () => {
     });
 
     let count = 0;
+
     class Component extends React.Component {
       state = {
         client: client1
@@ -1335,7 +1366,8 @@ describe('General Mutation testing', () => {
 
     // Prevent error from being logged in console of test.
     const errorLogger = console.error;
-    console.error = () => {};
+    console.error = () => {
+    };
 
     expect(() => {
       render(
@@ -1345,7 +1377,7 @@ describe('General Mutation testing', () => {
       );
     }).toThrowError(
       'Running a Mutation requires a graphql Mutation, but a Query was used ' +
-        'instead.'
+      'instead.'
     );
 
     console.log = errorLogger;
@@ -1369,11 +1401,12 @@ describe('General Mutation testing', () => {
         expect(e).toEqual(
           new Error(
             'Running a Mutation requires a graphql Mutation, but a Query ' +
-              'was used instead.'
+            'was used instead.'
           )
         );
         done();
       }
+
       render() {
         return (
           <Mutation mutation={this.state.query}>
@@ -1392,7 +1425,8 @@ describe('General Mutation testing', () => {
 
     // Prevent error from being logged in console of test.
     const errorLogger = console.error;
-    console.error = () => {};
+    console.error = () => {
+    };
 
     render(
       <MockedProvider>
@@ -1414,7 +1448,8 @@ describe('General Mutation testing', () => {
 
     // Prevent error from being logged in console of test.
     const errorLogger = console.error;
-    console.error = () => {};
+    console.error = () => {
+    };
 
     expect(() => {
       render(
@@ -1424,7 +1459,7 @@ describe('General Mutation testing', () => {
       );
     }).toThrowError(
       'Running a Mutation requires a graphql Mutation, but a Subscription ' +
-        'was used instead.'
+      'was used instead.'
     );
 
     console.log = errorLogger;
@@ -1448,7 +1483,7 @@ describe('General Mutation testing', () => {
         expect(e).toEqual(
           new Error(
             'Running a Mutation requires a graphql Mutation, but a ' +
-              'Subscription was used instead.'
+            'Subscription was used instead.'
           )
         );
         done();
@@ -1472,7 +1507,8 @@ describe('General Mutation testing', () => {
 
     // Prevent error from being logged in console of test.
     const errorLogger = console.error;
-    console.error = () => {};
+    console.error = () => {
+    };
 
     render(
       <MockedProvider>
@@ -1534,6 +1570,7 @@ describe('General Mutation testing', () => {
 
   it('calls the onError prop if the mutation encounters an error', async () => {
     let onErrorCalled = false;
+
     function onError(error: ApolloError) {
       expect(error.message).toEqual('error occurred');
       onErrorCalled = true;
