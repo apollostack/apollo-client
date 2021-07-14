@@ -8,7 +8,7 @@ Thanks for helping make Apollo OSS better! Here are a few quick repo maintenance
 
 ## Issues
 
-- Issues are for bugs only. All other requests should be redirected accordingly, then closed. Feature requests have their own [repo](https://github.com/apollographql/apollo-feature-requests), and requests for help should go to [Spectrum](https://spectrum.chat/apollo) or [Stack Overflow](http://stackoverflow.com).
+- Issues are for bugs only. All other requests should be redirected accordingly, then closed. Feature requests have their own [repo](https://github.com/apollographql/apollo-feature-requests), and requests for help should go to [our community forums](https://community.apollographql.com) or [Stack Overflow](http://stackoverflow.com).
 - If a bug report is valid, add the `confirmed` label, and optionally decide if community help should be requested using the `help-wanted` label. If you’re planning on working on it, assign the issue to yourself.
 - If an issue isn’t easily reproducible, ask for a reproduction and add a `reproduction-needed` label.
 - If a reproduction has been asked for but hasn’t been received in 1 week, close the issue.

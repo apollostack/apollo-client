@@ -34,6 +34,7 @@ module.exports = {
             'data/subscriptions',
             'data/fragments',
             'data/error-handling',
+            'data/operation-best-practices'
           ],
           Caching: [
             'caching/cache-configuration',

@@ -175,20 +175,13 @@ export class QueryData<TData, TVariables> extends OperationData<
       return ssrLoading;
     }
 
-    let result;
     if (this.ssrInitiated()) {
-      if (skip) {
-        result = this.getQueryResult();
-      } else {
-        result =
-          this.context.renderPromises!.addQueryPromise(
-            this,
-            this.getQueryResult
-          ) || ssrLoading;
-      };
+      const result = this.getQueryResult() || ssrLoading;
+      if (result.loading && !skip) {
+        this.context.renderPromises!.addQueryPromise(this, () => null);
+      }
+      return result;
     }
-
-    return result;
   }
 
   private prepareObservableQueryOptions() {

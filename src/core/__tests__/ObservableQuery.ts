@@ -15,6 +15,28 @@ import mockQueryManager from '../../utilities/testing/mocking/mockQueryManager';
 import mockWatchQuery from '../../utilities/testing/mocking/mockWatchQuery';
 import wrap from '../../utilities/testing/wrap';
 
+export const mockFetchQuery = (queryManager: QueryManager<any>) => {
+  const fetchQueryObservable = queryManager.fetchQueryObservable;
+  const fetchQueryByPolicy: QueryManager<any>["fetchQueryByPolicy"] =
+    (queryManager as any).fetchQueryByPolicy;
+
+  const mock = <T extends
+    | typeof fetchQueryObservable
+    | typeof fetchQueryByPolicy
+  >(original: T) => jest.fn<ReturnType<T>, Parameters<T>>(function () {
+    return original.apply(queryManager, arguments);
+  });
+
+  const mocks = {
+    fetchQueryObservable: mock(fetchQueryObservable),
+    fetchQueryByPolicy: mock(fetchQueryByPolicy),
+  };
+
+  Object.assign(queryManager, mocks);
+
+  return mocks;
+};
+
 describe('ObservableQuery', () => {
   // Standard data for all these tests
   const query = gql`
@@ -929,31 +951,6 @@ describe('ObservableQuery', () => {
   });
 
   describe('refetch', () => {
-    function mockFetchQuery(queryManager: QueryManager<any>) {
-      const fetchQueryObservable = queryManager.fetchQueryObservable;
-      const fetchQueryByPolicy: QueryManager<any>["fetchQueryByPolicy"] =
-        (queryManager as any).fetchQueryByPolicy;
-
-      const mock = <T extends
-        | typeof fetchQueryObservable
-        | typeof fetchQueryByPolicy
-      >(original: T) => jest.fn<
-        ReturnType<T>,
-        Parameters<T>
-      >(function () {
-        return original.apply(queryManager, arguments);
-      });
-
-      const mocks = {
-        fetchQueryObservable: mock(fetchQueryObservable),
-        fetchQueryByPolicy: mock(fetchQueryByPolicy),
-      };
-
-      Object.assign(queryManager, mocks);
-
-      return mocks;
-    }
-
     itAsync('calls fetchRequest with fetchPolicy `network-only` when using a non-networked fetch policy', (resolve, reject) => {
       const mockedResponses = [
         {

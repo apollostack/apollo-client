@@ -21,7 +21,7 @@ A [Svelte](https://svelte.dev) integration is maintained by Tim Hall ([@timhall]
 
 ## Angular
 
-An [Angular](https://angular.io) integration is maintained by Kamil Kisiela ([@kamilkisiela](https://github.com/kamilkisiela)). See the [website](https://apollo-angular.com] for more details.
+An [Angular](https://angular.io) integration is maintained by Kamil Kisiela ([@kamilkisiela](https://github.com/kamilkisiela)). See the [website](https://apollo-angular.com) for more details.
 
 ## Ember
 

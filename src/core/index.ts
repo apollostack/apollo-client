@@ -103,11 +103,10 @@ setVerbosity("log");
 // workaround of pulling the extra properties off the `gql` function,
 // then re-exporting them separately, helps keeps bundlers happy without any
 // additional config changes.
-import gql from 'graphql-tag';
-export const {
+export {
+  default as gql,
   resetCaches,
   disableFragmentWarnings,
   enableExperimentalFragmentVariables,
-  disableExperimentalFragmentVariables
-} = gql;
-export { gql };
+  disableExperimentalFragmentVariables,
+} from 'graphql-tag';

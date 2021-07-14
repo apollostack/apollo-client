@@ -21,7 +21,6 @@ import {
   isReference,
   getStoreKeyName,
   canUseWeakMap,
-  compact,
 } from '../../utilities';
 import { IdGetter, ReadMergeModifyContext, MergeInfo } from "./types";
 import {
@@ -545,7 +544,11 @@ export class Policies {
 
     const inbox = this.toBeAdded[typename];
     if (inbox && inbox.length) {
-      this.updateTypePolicy(typename, compact(...inbox.splice(0)));
+      // Merge the pending policies into this.typePolicies, in the order they
+      // were originally passed to addTypePolicy.
+      inbox.splice(0).forEach(policy => {
+        this.updateTypePolicy(typename, policy);
+      });
     }
 
     return this.typePolicies[typename];

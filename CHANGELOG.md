@@ -1,3 +1,74 @@
+## Apollo Client 3.3.21
+
+### Bug fixes
+
+- Fix race condition in `@apollo/client/link/context` that could leak subscriptions if the subscription is cancelled before `operation.setContext` is called. <br/>
+  [@sofianhn](https://github.com/sofianhn) in [#8399](https://github.com/apollographql/apollo-client/pull/8399)
+
+- Prefer `existing.pageInfo.startCursor` and `endCursor` (if defined) in `read` function of `relayStylePagination` policies. <br/>
+  [@benjamn](https://github.com/benjamn) in [#8438](https://github.com/apollographql/apollo-client/pull/8438)
+
+### Improvements
+
+- Normalize user-provided `HttpLink` headers by lower-casing their names. <br/>
+  [@benjamn](https://github.com/benjamn) in [#8449](https://github.com/apollographql/apollo-client/pull/8449)
+
+## Apollo Client 3.3.20
+
+### Bug fixes
+
+- Fix policy merging bug when calling `cache.policies.addTypePolicies` multiple times for the same type policy. <br/>
+  [@Banou26](https://github.com/Banou26) in [#8361](https://github.com/apollographql/apollo-client/pull/8361)
+
+## Apollo Client 3.3.19
+
+### Bug fixes
+
+- Use `export ... from` syntax to re-export `graphql-tag` named exports, making tree-shaking easier for some bundlers. <br/>
+  [@benjamn](https://github.com/benjamn) in [#8221](https://github.com/apollographql/apollo-client/pull/8221)
+
+### Documentation
+
+- Replace Spectrum references with [community.apollographql.com](https://community.apollographql.com). <br/>
+  [@hwillson](https://github.com/hwillson) in [#8238](https://github.com/apollographql/apollo-client/pull/8238)
+
+## Apollo Client 3.3.18
+
+### Bug fixes
+
+- Add `"sideEffects": false` to all generated/published `package.json` files, to improve dead code elimination for nested entry points like `@apollo/client/cache`. <br/>
+  [@benjamn](https://github.com/benjamn) in [#8213](https://github.com/apollographql/apollo-client/pull/8213)
+
+## Apollo Client 3.3.17
+
+### Bug fixes
+
+- Make `useReactiveVar(rv)` recheck the latest `rv()` value in its `useEffect` callback, and immediately update state if the value has already changed, rather than calling `rv.onNextChange(setValue)` to listen for future changes. <br/>
+  [@benjamn](https://github.com/benjamn) in [#8135](https://github.com/apollographql/apollo-client/pull/8135)
+
+## Apollo Client 3.3.16
+
+### Bug fixes
+
+- Prevent `undefined` mutation result in `useMutation`. <br/>
+  [@jcreighton](https://github.com/jcreighton) in [#8018](https://github.com/apollographql/apollo-client/pull/8018)
+
+- Fix `useReactiveVar` not rerendering for successive synchronous calls. <br/>
+  [@brainkim](https://github.com/brainkim) in [#8022](https://github.com/apollographql/apollo-client/pull/8022)
+
+- Support `batchDebounce` option for `BatchLink` and `BatchHttpLink`. <br/>
+  [@dannycochran](https://github.com/dannycochran) in [#8024](https://github.com/apollographql/apollo-client/pull/8024)
+
+## Apollo Client 3.3.15
+
+### Bug fixes
+
+- Increment `queryInfo.lastRequestId` only when making a network request through the `ApolloLink` chain, rather than every time `fetchQueryByPolicy` is called. <br/>
+  [@dannycochran](https://github.com/dannycochran) in [#7956](https://github.com/apollographql/apollo-client/pull/7956)
+
+- During server-side rendering, allow initial `useQuery` calls to return final `{ loading: false, data }` results when the cache already contains the necessary data. <br/>
+  [@benjamn](https://github.com/benjamn) in [#7983](https://github.com/apollographql/apollo-client/pull/7983)
+
 ## Apollo Client 3.3.14
 
 ### Improvements

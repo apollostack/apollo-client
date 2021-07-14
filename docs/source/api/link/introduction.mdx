@@ -3,6 +3,9 @@ title: Apollo Link overview
 description: Customize Apollo Client's data flow
 ---
 
+import {ExpansionPanel} from 'gatsby-theme-apollo-docs';
+import LinkChain from '../../../shared/link-chain.mdx';
+
 > If your application only needs to send conventional HTTP-based requests to a GraphQL server, you probably don't need to use the Apollo Link API. See [Basic HTTP networking](../../networking/basic-http-networking/).
 
 The **Apollo Link** library helps you customize the flow of data between Apollo Client and your GraphQL server. You can define your client's network behavior as a chain of **link** objects that execute in a sequence:
@@ -39,6 +42,22 @@ Each link should represent either a self-contained modification to a GraphQL ope
 By default, Apollo Client uses Apollo Link's `HttpLink` to send GraphQL operations to a remote server over HTTP. Apollo Client takes care of creating this default link, and it covers many use cases without requiring additional customization.
 
 To extend or replace this default networking behavior, you can define _custom_ links and specify their order of execution in the `ApolloClient` constructor.
+
+## Your first link chain
+
+The example below demonstrates a basic link chain with two Apollo-provided links:
+
+* An `onError` link that checks for errors in the server's response. It logs the details of whichever error(s) it finds.
+* An `HttpLink` that sends each GraphQL operation to your server.
+    * _This is the chain's [terminating link](#the-terminating-link)._
+
+Note that if you provide a link chain to the `ApolloClient` constructor, you _don't_ provide the `uri` option. Instead, you provide your server's URL to your `HttpLink`.
+
+<ExpansionPanel title="Click to expand example">
+
+<LinkChain/>
+
+</ExpansionPanel>
 
 ## Creating a custom link
 

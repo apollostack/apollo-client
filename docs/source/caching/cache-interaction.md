@@ -315,6 +315,7 @@ const newComment = {
 };
 
 cache.modify({
+  id: cache.identify(myPost),
   fields: {
     comments(existingCommentRefs = [], { readField }) {
       const newCommentRef = cache.writeFragment({

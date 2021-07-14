@@ -252,6 +252,58 @@ describe('useMutation Hook', () => {
     });
 
     describe('mutate function upon error', () => {
+      itAsync('resolves with the resulting data and errors', async (resolve, reject) => {
+        const variables = {
+          description: 'Get milk!'
+        };
+
+        const mocks = [
+          {
+            request: {
+              query: CREATE_TODO_MUTATION,
+              variables
+            },
+            result: {
+              data: CREATE_TODO_RESULT,
+              errors: [new GraphQLError(CREATE_TODO_ERROR)],
+            },
+          }
+        ];
+
+        let fetchResult: any;
+        const Component = () => {
+          const [createTodo] = useMutation<{ createTodo: Todo }>(
+            CREATE_TODO_MUTATION,
+            {
+              onError: error => {
+                expect(error.message).toEqual(CREATE_TODO_ERROR);
+              }
+            }
+          );
+
+          async function runMutation() {
+            fetchResult = await createTodo({ variables });
+          }
+
+          useEffect(() => {
+            runMutation();
+          }, []);
+
+          return null;
+        };
+
+        render(
+          <MockedProvider mocks={mocks}>
+            <Component />
+          </MockedProvider>
+        );
+
+        await wait(() => {
+          expect(fetchResult.data).toEqual(undefined);
+          expect(fetchResult.errors.message).toEqual(CREATE_TODO_ERROR);
+        }).then(resolve, reject);
+      });
+
       it(`should reject when errorPolicy is 'none'`, async () => {
         const variables = {
           description: 'Get milk!'

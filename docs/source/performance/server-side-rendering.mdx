@@ -137,6 +137,8 @@ Because our app uses Apollo Client, some of the components in the React tree pro
 This function walks down the entire tree and executes every required query it encounters (including nested queries). It returns a `Promise` that resolves when all result data is ready in the Apollo Client cache.
 
 When the `Promise` resolves, you're ready to render your React tree and return it, along with the current state of the Apollo Client cache.
+  
+> Note that if you are rendering your React tree directly to a string (instead of the component-based example below), you will need to use [`renderToStringWithData`](https://www.apollographql.com/docs/react/api/react/ssr/#rendertostringwithdata) instead of `getDataFromTree`. This will ensure the client-side React hydration works correctly by using [`ReactDOMServer.renderToString`](https://reactjs.org/docs/react-dom-server.html#rendertostring) to generate the string.
 
 The following code replaces the `TODO` comment within the `app.use` call in the example above:
 

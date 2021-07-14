@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { StrictMode, useEffect } from "react";
 import { render, wait, act } from "@testing-library/react";
 
 import { itAsync } from "../../../testing";
@@ -232,6 +232,69 @@ describe("useReactiveVar Hook", () => {
 
       await wait(() => {
         expect(getAllByText("1")).toHaveLength(2);
+      });
+
+      resolve();
+    });
+
+    itAsync("works with strict mode", async (resolve, reject) => {
+      const counterVar = makeVar(0);
+      const mock = jest.fn();
+
+      function Component() {
+        const count = useReactiveVar(counterVar);
+        useEffect(() => {
+          mock(count);
+        }, [count]);
+
+        useEffect(() => {
+          Promise.resolve().then(() => {
+            counterVar(counterVar() + 1);
+          });
+        }, []);
+
+        return (
+          <div />
+        );
+      }
+
+      render(
+        <StrictMode>
+          <Component />
+        </StrictMode>
+      );
+
+      await wait(() => {
+        expect(mock).toHaveBeenCalledWith(1);
+      });
+
+      resolve();
+    });
+
+    itAsync("works with multiple synchronous calls", async (resolve, reject) => {
+      const counterVar = makeVar(0);
+      function Component() {
+        const count = useReactiveVar(counterVar);
+
+        return (<div>{count}</div>);
+      }
+
+      const { getAllByText } = render(<Component />);
+      Promise.resolve().then(() => {
+        counterVar(1);
+        counterVar(2);
+        counterVar(3);
+        counterVar(4);
+        counterVar(5);
+        counterVar(6);
+        counterVar(7);
+        counterVar(8);
+        counterVar(9);
+        counterVar(10);
+      });
+
+      await wait(() => {
+        expect(getAllByText("10")).toHaveLength(1);
       });
 
       resolve();

@@ -16,7 +16,7 @@ It provides the following features to all Apollo users for free:
 
 Advanced features are available with a subscription to an Apollo Team or Enterprise plan.
 
-To learn more about Graph Manager, check out the [overview](https://www.apollographql.com/docs/platform/graph-manager-overview/).
+To learn more about Apollo Studio, check out the [overview](https://www.apollographql.com/docs/studio/).
 
 ## Apollo Client Devtools
 

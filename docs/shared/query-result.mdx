@@ -1,16 +1,275 @@
-| Property | Type | Description |
-| - | - | - |
-| `data` | TData | An object containing the result of your GraphQL query. Defaults to `undefined`. |
-| `previousData` | TData | An object containing the previous result of your GraphQL query (the last result before a new `data` value was set). Defaults to `undefined`. |
-| `loading` | boolean | A boolean that indicates whether the request is in flight |
-| `error` | ApolloError | A runtime error with `graphQLErrors` and `networkError` properties |
-| `variables` | { [key: string]: any } | An object containing the variables the query was called with |
-| `networkStatus` | NetworkStatus | A number from 1-8 (1 = `loading`, 2 = `setVariables`, 3 = `fetchMore`, 4 = `refetch`, 6 = `poll`, 7 = `ready`, 8 = `error`) corresponding to the detailed state of your network request. Includes information about refetching and polling status. Used in conjunction with the `notifyOnNetworkStatusChange` prop. |
-| `refetch` | (variables?: Partial&lt;TVariables&gt;) => Promise&lt;ApolloQueryResult&gt; | A function that allows you to refetch the query and optionally pass in new variables |
-| `fetchMore` | ({ query?: DocumentNode, variables?: TVariables, updateQuery: Function}) => Promise&lt;ApolloQueryResult&gt; | A function that enables [pagination](../../../pagination/overview) for your query |
-| `startPolling` | (interval: number) => void | This function sets up an interval in ms and fetches the query each time the specified interval passes. |
-| `stopPolling` | () => void | This function stops the query from polling. |
-| `subscribeToMore` | (options: { document: DocumentNode, variables?: TVariables, updateQuery?: Function, onError?: Function}) => () => void | A function that sets up a [subscription](../../../data/subscriptions/). `subscribeToMore` returns a function that you can use to unsubscribe. |
-| `updateQuery` | (previousResult: TData, options: { variables: TVariables }) => TData | A function that allows you to update the query's result in the cache outside the context of a fetch, mutation, or subscription |
-| `client` | ApolloClient | Your `ApolloClient` instance. Useful for manually firing queries or writing data to the cache. |
-| `called` | boolean | A boolean indicating if the query function has been called, used by `useLazyQuery` (not set for `useQuery` / `Query`). |
+<table class="field-table api-ref">
+
+<thead>
+    <tr>
+      <th>Name /<br/>Type</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+
+<tbody>
+
+<tr>
+<td colspan="2">
+
+**Operation data**
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+###### `data`
+
+`TData`
+</td>
+
+<td>
+
+An object containing the result of your GraphQL query after it completes.
+
+This value might be `undefined` if a query results in one or more errors (depending on the query's `errorPolicy`).
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+###### `previousData`
+
+`TData`
+</td>
+
+<td>
+
+An object containing the result from the most recent _previous_ execution of this query.
+
+This value is `undefined` if this is the query's first execution.
+
+</td>
+</tr>
+
+
+<tr>
+<td>
+
+###### `error`
+
+`ApolloError`
+</td>
+
+<td>
+
+If the query produces one or more errors, this object contains either an array of `graphQLErrors` or a single `networkError`. Otherwise, this value is `undefined`.
+
+For more information, see [Handling operation errors](https://www.apollographql.com/docs/react/data/error-handling/).
+
+</td>
+</tr>
+
+
+<tr>
+<td>
+
+###### `variables`
+
+`{ [key: string]: any }`
+</td>
+
+<td>
+
+An object containing the variables that were provided for the query.
+
+</td>
+</tr>
+
+
+<tr>
+<td colspan="2">
+
+**Network info**
+
+</td>
+</tr>
+
+
+<tr>
+<td>
+
+###### `loading`
+
+`boolean`
+</td>
+
+<td>
+
+If `true`, the query is still in flight and results have not yet been returned.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+###### `networkStatus`
+
+`NetworkStatus`
+</td>
+
+<td>
+
+A number indicating the current network state of the query's associated request. [See possible values.](https://github.com/apollographql/apollo-client/blob/d96f4578f89b933c281bb775a39503f6cdb59ee8/src/core/networkStatus.ts#L4)
+
+Used in conjunction with the [`notifyOnNetworkStatusChange`](#notifyonnetworkstatuschange) option.
+
+</td>
+</tr>
+
+
+<tr>
+<td>
+
+###### `client`
+
+`ApolloClient`
+</td>
+
+<td>
+
+The instance of Apollo Client that executed the query.
+
+Can be useful for manually executing followup queries or writing data to the cache.
+
+</td>
+</tr>
+
+
+<tr>
+<td>
+
+###### `called`
+
+`boolean`
+</td>
+
+<td>
+
+If `true`, the associated lazy query has been executed.
+
+This field is only present on the result object returned by [`useLazyQuery`](https://www.apollographql.com/docs/react/data/queries/#executing-queries-manually).
+
+</td>
+</tr>
+
+<tr>
+<td colspan="2">
+
+**Helper functions**
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+###### `refetch`
+
+`(variables?: Partial<TVariables>) => Promise<ApolloQueryResult>`
+</td>
+
+<td>
+
+A function that enables you to re-execute the query, optionally passing in new `variables`.
+
+The `fetchPolicy` for the refetched query will be set to `network-only`, unless the `fetchPolicy` is already `no-cache` or `cache-and-network` (which also guarantee a network request).
+
+See also [Refetching](https://www.apollographql.com/docs/react/data/queries/#refetching).
+
+</td>
+</tr>
+
+
+<tr>
+<td>
+
+###### `fetchMore`
+
+`({ query?: DocumentNode, variables?: TVariables, updateQuery: Function}) => Promise<ApolloQueryResult>`
+</td>
+
+<td>
+
+A function that helps you fetch the next set of results for a [paginated list field](https://www.apollographql.com/docs/react/pagination/core-api/).
+
+</td>
+</tr>
+
+
+<tr>
+<td>
+
+###### `startPolling`
+
+`(interval: number) => void`
+</td>
+
+<td>
+
+A function that instructs the query to begin re-executing at a specified interval (in milliseconds).
+
+</td>
+</tr>
+
+
+<tr>
+<td>
+
+###### `stopPolling`
+
+`() => void`
+</td>
+
+<td>
+
+A function that instructs the query to stop polling after a previous call to `startPolling`.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+###### `subscribeToMore`
+
+`(options: { document: DocumentNode, variables?: TVariables, updateQuery?: Function, onError?: Function}) => () => void`
+</td>
+
+<td>
+
+A function that enables you to execute a [subscription](https://www.apollographql.com/docs/react/data/subscriptions/), usually to subscribe to specific fields that were included in the query.
+
+This function returns _another_ function that you can call to terminate the subscription.
+
+</td>
+</tr>
+
+
+<tr>
+<td>
+
+###### `updateQuery`
+
+`(previousResult: TData, options: { variables: TVariables }) => TData`
+</td>
+
+<td>
+
+A function that enables you to update the query's cached result without executing a followup GraphQL operation.
+
+</td>
+</tr>
+
+</tbody>
+</table>

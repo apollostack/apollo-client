@@ -27,6 +27,8 @@ export class OperationBatcher {
   // Public only for testing
   public queuedRequests: Map<string, BatchableRequest[]>;
 
+  private scheduledBatchTimer: ReturnType<typeof setTimeout>;
+  private batchDebounce?: boolean;
   private batchInterval?: number;
   private batchMax: number;
 
@@ -35,17 +37,20 @@ export class OperationBatcher {
   private batchKey: (operation: Operation) => string;
 
   constructor({
+    batchDebounce,
     batchInterval,
     batchMax,
     batchHandler,
     batchKey,
   }: {
+    batchDebounce?: boolean;
     batchInterval?: number;
     batchMax?: number;
     batchHandler: BatchHandler;
     batchKey?: (operation: Operation) => string;
   }) {
     this.queuedRequests = new Map();
+    this.batchDebounce = batchDebounce;
     this.batchInterval = batchInterval;
     this.batchMax = batchMax || 0;
     this.batchHandler = batchHandler;
@@ -85,6 +90,9 @@ export class OperationBatcher {
 
         // The first enqueued request triggers the queue consumption after `batchInterval` milliseconds.
         if (this.queuedRequests.get(key)!.length === 1) {
+          this.scheduleQueueConsumption(key);
+        } else if (this.batchDebounce) {
+          clearTimeout(this.scheduledBatchTimer);
           this.scheduleQueueConsumption(key);
         }
 
@@ -183,13 +191,13 @@ export class OperationBatcher {
 
   private scheduleQueueConsumption(key?: string): void {
     const requestKey = key || '';
-    setTimeout(() => {
+    this.scheduledBatchTimer = (setTimeout(() => {
       if (
         this.queuedRequests.get(requestKey) &&
         this.queuedRequests.get(requestKey)!.length
       ) {
         this.consumeQueue(requestKey);
       }
-    }, this.batchInterval);
+    }, this.batchInterval));
   }
 }

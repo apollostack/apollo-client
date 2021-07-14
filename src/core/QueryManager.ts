@@ -854,7 +854,7 @@ export class QueryManager<TStore> {
       | "fetchPolicy"
       | "errorPolicy">,
   ): Observable<ApolloQueryResult<TData>> {
-    const { lastRequestId } = queryInfo;
+    const requestId = queryInfo.lastRequestId = this.generateRequestId();
 
     return asyncMap(
       this.getObservableFromLink(
@@ -866,7 +866,9 @@ export class QueryManager<TStore> {
       result => {
         const hasErrors = isNonEmptyArray(result.errors);
 
-        if (lastRequestId >= queryInfo.lastRequestId) {
+        // If we interrupted this request by calling getResultsFromLink again
+        // with the same QueryInfo object, we ignore the old results.
+        if (requestId >= queryInfo.lastRequestId) {
           if (hasErrors && options.errorPolicy === "none") {
             // Throwing here effectively calls observer.error.
             throw queryInfo.markError(new ApolloError({
@@ -895,7 +897,8 @@ export class QueryManager<TStore> {
           ? networkError
           : new ApolloError({ networkError });
 
-        if (lastRequestId >= queryInfo.lastRequestId) {
+        // Avoid storing errors from older interrupted queries.
+        if (requestId >= queryInfo.lastRequestId) {
           queryInfo.markError(error);
         }
 
@@ -1044,7 +1047,6 @@ export class QueryManager<TStore> {
     queryInfo.init({
       document: query,
       variables,
-      lastRequestId: this.generateRequestId(),
       networkStatus,
     });
 

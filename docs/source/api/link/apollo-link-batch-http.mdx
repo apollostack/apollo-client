@@ -1,46 +1,205 @@
 ---
-title: HTTP Batch Link
+title: Batch HTTP Link
 sidebar_title: HTTP Batch
 description: Batch multiple operations into a single HTTP request
 ---
 
 ## Overview
 
-`@apollo/client/link/batch-http` is a terminating link that combines multiple GraphQL
-operations into a single HTTP request. This link batches individual
-operations together into an array that is sent to a single GraphQL endpoint.
+The `BatchHttpLink` is a terminating link that batches an array of individual GraphQL operations into a single HTTP request that's sent to a single GraphQL endpoint.
 
 ```js
 import { BatchHttpLink } from "@apollo/client/link/batch-http";
 
-const link = new BatchHttpLink({ uri: "/graphql" });
+const link = new BatchHttpLink({ 
+  uri: "http://localhost:4000/graphql",
+  batchMax: 5, // No more than 5 operations per batch
+  batchInterval: 20 // Wait no more than 20ms after first batched operation
+});
 ```
+
+If you use `BatchHttpLink` instead of [`HttpLink`](./apollo-link-http) as your terminating link, Apollo Client automatically batches executed GraphQL operations and transmits them to your server according to the [batching options](#options) you provide.
 
 ## Options
 
-The batch HTTP link accepts a configuration object that can be used to customize the behavior
-of the link. There are two different categories of options: http and batch.
+The `BatchHttpLink` constructor accepts a configuration object that supports the following options:
 
-| Option | Description |
-| - | - |
-| `uri` | The URI key is a string endpoint -- will default to "/graphql" if not specified |
-| `includeExtensions` | Allow passing the extensions field to your graphql server, defaults to false |
-| `fetch` | A `fetch` compatible API for making a request |
-| `headers` | An object representing values to be sent as headers on the request |
-| `credentials` | A string representing the credentials policy you want for the fetch call |
-| `fetchOptions` | Any overrides of the fetch options argument to pass to the fetch call. Note that you cannot use batching with the GET HTTP method. |
+<table class="field-table api-ref">
+  <thead>
+    <tr>
+      <th>Name /<br/>Type</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+<td colspan="2">
 
-The batching options indicate how operations are batched together, the size of batches, and the maximum time a batch will wait before automatically being sent over the network.
+**Batching options**
+</td>
+</tr>
+<tr>
+<td>
 
-| Option | Description |
-| - | - |
-| `batchMax` | A max number of items to batch, defaults at 10 |
-| `batchInterval` | The interval at which to batch (in ms), defaults to 10 |
-| `batchKey` | A function that accepts an operation and returns a string key, which uniquely names the batch the operation belongs to, defaults to returning the same string |
+###### `batchMax`
 
-## Fetch polyfill
+`number`
+</td>
+<td>
 
-The batch HTTP link relies on having `fetch` present in your runtime environment. If you are running on react-native, or modern browsers, this should not be a problem. If you are targeting an environment without `fetch` such as older browsers or the server however, you will need to pass your own `fetch` to the link through its options. We recommend using [`cross-fetch`](https://www.npmjs.com/package/cross-fetch) for older browsers and Node.
+The maximum number of operations to include in a single batch.
+
+The default value is `10`.
+</td>
+</tr>
+<tr>
+<td>
+
+###### `batchInterval`
+
+`number`
+</td>
+<td>
+
+The maximum number of milliseconds to wait before sending each batched request. If `batchMax` operations are batched before `batchInterval` is reached, the request is sent immediately.
+
+The default value is `10`.
+</td>
+</tr>
+<tr>
+<td>
+
+###### `batchDebounce`
+
+`boolean`
+</td>
+<td>
+
+If `true`, the `batchInterval` timer is reset whenever an operation is added to the batch. In other words, the next batched request is not sent until either:
+
+* No operation is added for `batchInterval` milliseconds, or
+* `batchMax` is reached.
+
+The default value is `false`.
+</td>
+</tr>
+<tr>
+<td>
+
+###### `batchKey`
+
+`string`
+</td>
+<td>
+
+A function that accepts an operation and returns a string key, which uniquely names the batch the operation belongs to.
+
+[See the default function](https://github.com/apollographql/apollo-client/blob/main/src/link/batch-http/batchHttpLink.ts#L192-L206)
+</td>
+</tr>
+    <tr>
+<td colspan="2">
+
+**HTTP options**
+</td>
+</tr>
+<tr>
+<td>
+
+###### `uri`
+
+`String` or `Function`
+</td>
+<td>
+
+The URL of the GraphQL endpoint to send requests to. Can also be a function that accepts an `Operation` object and returns the string URL to use for that operation.
+
+The default value is `/graphql`.
+</td>
+</tr>
+
+
+<tr>
+<td>
+
+###### `includeExtensions`
+
+`Boolean`
+</td>
+<td>
+
+If true, includes the `extensions` field in operations sent to your GraphQL endpoint.
+
+The default value is `false`.
+</td>
+</tr>
+
+<tr>
+<td>
+
+###### `fetch`
+
+`Function`
+</td>
+<td>
+
+A function to use instead of calling the [Fetch API](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch) directly when sending HTTP requests to your GraphQL endpoint. The function must conform to the signature of `fetch`.
+
+By default, the Fetch API is used unless it isn't available in your runtime environment.
+
+See [Customizing `fetch`](./apollo-link-http/#customizing-fetch).
+</td>
+</tr>
+
+
+<tr>
+<td>
+
+###### `headers`
+
+`Object`
+</td>
+
+<td>
+
+An object representing headers to include in every HTTP request, such as `{Authentication: 'Bearer abc123'}`.
+</td>
+</tr>
+
+<tr>
+<td>
+
+###### `credentials`
+
+`String`
+</td>
+
+<td>
+
+The credentials policy to use for each `fetch` call. Can be `omit`, `include`, or `same-origin`.
+</td>
+</tr>
+
+
+<tr>
+<td>
+
+###### `fetchOptions`
+
+`Object`
+</td>
+
+<td>
+
+An object containing options to use for each call to `fetch`. If a particular option is not included in this object, the default value of that option is used.
+
+Note that if you set `fetchOptions.method` to `GET`, `BatchHttpLink` follows [standard GraphQL HTTP GET encoding](http://graphql.org/learn/serving-over-http/#get-request).
+
+[See available options](https://developer.mozilla.org/en-US/docs/Web/API/WindowOrWorkerGlobalScope/fetch#Parameters)
+</td>
+</tr>
+  </tbody>
+</table>
 
 ## Context
 
@@ -78,32 +237,4 @@ One way to use persisted queries is with [apollo-link-persisted-queries](https:/
 
 ## Custom fetching
 
-You can use the `fetch` option when creating an `HttpLink`, to do a lot of custom networking. This is useful if you want to modify the request based on calculated headers or calculate the uri based on the operation.
-
-### Custom auth
-
-```js
-const customFetch = (uri, options) => {
-  const { header } = Hawk.client.header(
-    "http://example.com:8000/resource/1?b=1&a=2",
-    "POST",
-    { credentials: credentials, ext: "some-app-data" }
-  );
-  options.headers.Authorization = header;
-  return fetch(uri, options);
-};
-
-const link = new BatchHttpLink({ fetch: customFetch });
-```
-
-### Dynamic URI
-
-```js
-const customFetch = (uri, options) => {
-  const operationNames =
-    JSON.parse(options.body).map(operation => operation.operationName);
-  return fetch(`${uri}/graph/graphql?opname=${operationNames}`, options);
-};
-
-const link = new BatchHttpLink({ fetch: customFetch });
-```
+See [Customizing `fetch`](apollo-link-http/#customizing-fetch).

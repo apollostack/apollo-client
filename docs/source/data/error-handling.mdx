@@ -4,6 +4,7 @@ sidebar_title: Error handling
 ---
 
 import {ExpansionPanel} from 'gatsby-theme-apollo-docs';
+import LinkChain from '../../shared/link-chain.mdx';
 
 Apollo Client can encounter a variety of errors when executing operations on your GraphQL server. Apollo Client helps you handle these errors according to their type, enabling you to show appropriate information to the user when an error occurs.
 
@@ -15,13 +16,15 @@ Executing GraphQL operations on a remote server can result in [GraphQL errors](#
 
 These are errors related to the server-side execution of a GraphQL operation. They include:
 
-* Syntax errors (e.g., a query was malformed)
-* Validation errors (e.g., a query included a schema field that doesn't exist)
-* Resolver errors (e.g., an error occurred while attempting to populate a query field)
+* **Syntax errors** (e.g., a query was malformed)
+* **Validation errors** (e.g., a query included a schema field that doesn't exist)
+* **Resolver errors** (e.g., an error occurred while attempting to populate a query field)
+
+If a syntax error or validation error occurs, your server doesn't execute the operation at all because it's invalid. If resolver errors occur, your server can still return [partial data](#partial-data-with-resolver-errors).
 
 > Learn more about GraphQL errors in the [Apollo Server documentation](https://www.apollographql.com/docs/apollo-server/data/errors/).
 
-When a GraphQL error occurs, your server includes it in the `errors` array of its response to Apollo Client:
+If a GraphQL error occurs, your server includes it in the `errors` array of its response to Apollo Client:
 
 <ExpansionPanel title="Example error response">
 
@@ -55,11 +58,11 @@ When a GraphQL error occurs, your server includes it in the `errors` array of it
 
 Apollo Client then adds those errors to [the `error.graphQLErrors` array returned by your `useQuery` call](./queries/#result) (or whichever operation hook you used).
 
-If a GraphQL error prevents Apollo Server from including _any_ of the `data` you requested in its response, it responds with a `4xx` status code. Apollo Server responds with a `200` status code if a GraphQL error occurred but the response still includes [partial data](#partial-data-with-graphql-errors).
+If a GraphQL error prevents Apollo Server from executing your operation at all, it responds with a `4xx` status code. Apollo Server responds with a `200` status code if resolver errors occurred but the response still includes [partial data](#partial-data-with-resolver-errors).
 
-#### Partial data with GraphQL errors
+#### Partial data with resolver errors
 
-An operation that produces GraphQL errors might _also_ return **partial data**. This means that some (but not all) of the data your operation requested is included in your server's response. Apollo Client _ignores_ partial data by default, but you can override this behavior by [setting a GraphQL error policy](#graphql-error-policies).
+An operation that produces resolver errors might _also_ return **partial data**. This means that some (but not all) of the data your operation requested is included in your server's response. Apollo Client _ignores_ partial data by default, but you can override this behavior by [setting a GraphQL error policy](#graphql-error-policies).
 
 
 ### Network errors
@@ -72,7 +75,7 @@ You can add retry logic and other advanced network error handling to your applic
 
 ## GraphQL error policies
 
-When your server's response to a GraphQL operation includes an `errors` array, it might still include partial data in the `data` field:
+If a GraphQL operation produces one or more [resolver errors](#graphql-errors), your server's response might still include partial data in the `data` field:
 
 ```json
 {
@@ -106,7 +109,7 @@ Specify an error policy in the options object you provide your operation hook (s
 ```tsx{9}
 const MY_QUERY = gql`
   query WillFail {
-    badField # This field produces one or more errors
+    badField # This field's resolver produces an error
     goodField # This field is populated successfully
   }
 `;
@@ -135,22 +138,18 @@ The [Apollo Link](../api/link/introduction/) library enables you to configure ad
 
 As a recommended first step, you can add an [`onError` link](../api/link/apollo-link-error/) to your [link chain](../api/link/introduction/#handling-a-response) that receives error details and acts on them accordingly.
 
-This `onError` link checks for `graphQLErrors` or a `networkError` in the server's response. It logs the details of whichever error(s) it finds.
+The example below passes the `ApolloClient` constructor a link chain with two links:
 
-```js
-import { onError } from "@apollo/client/link/error";
+* An `onError` link that checks for `graphQLErrors` or a `networkError` in the server's response. It logs the details of whichever error(s) it finds.
+* An `HttpLink` that sends each GraphQL operation to your server.
+    * _This is the chain's [terminating link](../api/link/introduction/#the-terminating-link)._
 
-const errorLink = onError(({ graphQLErrors, networkError }) => {
-  if (graphQLErrors)
-    graphQLErrors.forEach(({ message, locations, path }) =>
-      console.log(
-        `[GraphQL error]: Message: ${message}, Location: ${locations}, Path: ${path}`,
-      ),
-    );
 
-  if (networkError) console.log(`[Network error]: ${networkError}`);
-});
-```
+<ExpansionPanel title="Click to expand example">
+
+<LinkChain/>
+
+</ExpansionPanel>
 
 ### Retrying operations
 

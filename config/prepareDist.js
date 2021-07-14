@@ -71,6 +71,7 @@ entryPoints.forEach(function buildPackageJson({
       main: `${bundleName}.cjs.js`,
       module: 'index.js',
       types: 'index.d.ts',
+      sideEffects: false,
     }, null, 2) + "\n",
   );
 });

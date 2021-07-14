@@ -150,7 +150,7 @@ FeedEntry.fragments = {
 };
 ```
 
-There's nothing special about the naming of `VoteButtons.fragments.entry` or `RepoInfo.fragments.entry`. Any naming convention works as long as you can retrieve a component's fragments given the component.
+There's nothing special about the naming of `VoteButtons.fragments.entry` or `EntryInfo.fragments.entry`. Any naming convention works as long as you can retrieve a component's fragments given the component.
 
 ### Importing fragments when using Webpack
 

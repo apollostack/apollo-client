@@ -205,3 +205,36 @@ it('unsubscribes without throwing before data', done => {
     done();
   }, 10);
 });
+
+it('does not start the next link subscription if the upstream subscription is already closed', done => {
+  let promiseResolved = false;
+  const withContext = setContext(() =>
+    sleep(5).then(() => {
+      promiseResolved = true;
+      return { dynamicallySet: true }
+    }),
+  );
+
+  let mockLinkCalled = false;
+  const mockLink = new ApolloLink(operation => {
+    mockLinkCalled = true;
+    fail('link should not be called');
+  });
+
+  const link = withContext.concat(mockLink);
+
+  let subscriptionReturnedData = false;
+  let handle = execute(link, { query }).subscribe(result => {
+    subscriptionReturnedData = true;
+    fail('subscription should not return data');
+  });
+
+  handle.unsubscribe();
+
+  setTimeout(() => {
+    expect(promiseResolved).toBe(true);
+    expect(mockLinkCalled).toBe(false);
+    expect(subscriptionReturnedData).toBe(false);
+    done();
+  }, 10);
+});

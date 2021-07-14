@@ -318,6 +318,29 @@ describe("type policies", function () {
     })).toBe("MotionPicture::3993d4118143");
   });
 
+  it("does not remove previous typePolicies", function () {
+    const cache = new InMemoryCache({
+      typePolicies: {
+        Query: {
+          fields: {
+            foo: () => 'foo'
+          }
+        },
+      },
+    });
+
+    cache.policies.addTypePolicies({
+      Query: {
+        fields: {
+          bar: () => 'bar'
+        }
+      },
+    });
+
+    expect(cache.readQuery({ query: gql` { foo } ` })).toEqual({foo: "foo"});
+    expect(cache.readQuery({ query: gql` { bar } ` })).toEqual({bar: "bar"});
+  });
+
   it("support inheritance", function () {
     const cache = new InMemoryCache({
       possibleTypes: {
@@ -3438,7 +3461,7 @@ describe("type policies", function () {
                 edges,
                 pageInfo: {
                   __typename: "PageInfo",
-                  startCursor: thirdPageInfo.startCursor,
+                  startCursor: fourthPageInfo.startCursor,
                   endCursor: fifthPageInfo.endCursor,
                   hasPreviousPage: false,
                   hasNextPage: true,

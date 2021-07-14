@@ -1,15 +1,20 @@
 ---
-title: Get started
-description: Set up Apollo Client in your React app
+title: Get started with Apollo Client
+sidebar_title: Get started
 ---
 
 Hello! This short tutorial gets you up and running with Apollo Client.
 
 > For a more complete introduction to the entire Apollo platform, [check out **Odyssey**, Apollo's new learning platform](https://odyssey.apollographql.com?utm_source=apollo_docs&utm_medium=referral). You can also complete the [full-stack tutorial](https://www.apollographql.com/docs/tutorial/introduction/).
 
-## Installation
+## 1. Setup
 
-First, let's install the packages we need:
+To walk through this tutorial, we recommend you either:
+
+* Create a new React project locally with [Create React App](https://create-react-app.dev/), or
+* Create a new React sandbox on [CodeSandbox](https://codesandbox.io/)
+
+Let's install the packages we need:
 
 ```bash
 npm install @apollo/client graphql
@@ -18,30 +23,43 @@ npm install @apollo/client graphql
 - `@apollo/client`: This single package contains virtually everything you need to set up Apollo Client. It includes the in-memory cache, local state management, error handling, and a React-based view layer.
 - `graphql`: This package provides logic for parsing GraphQL queries.
 
-> If you'd like to walk through this tutorial yourself, we recommend either running a new React project locally with [Create React App](https://create-react-app.dev/) or creating a new React sandbox on [CodeSandbox](https://codesandbox.io/). For reference, we will be using [this CodeSandbox](https://codesandbox.io/s/practical-snyder-48p1r2roz4) as our GraphQL server for our sample app, which pulls exchange rate data from the Coinbase API. If you'd like to skip ahead and see the app we're about to build, you can [view it on CodeSandbox](https://codesandbox.io/s/get-started-coinbase-client-73r10).
+> We'll be using [this CodeSandbox](https://codesandbox.io/s/practical-snyder-48p1r2roz4) as the GraphQL server for our sample app, which pulls exchange rate data from the Coinbase API. You can also [view the completed React app on CodeSandbox](https://codesandbox.io/s/get-started-coinbase-client-73r10).
 
-## Create a client
 
-Now that we have all the dependencies we need, let's initialize an `ApolloClient` instance. You'll need to provide it the URL of a running GraphQL server, such as [this CodeSandbox instance](https://codesandbox.io/s/practical-snyder-48p1r2roz4).
+## 2. Initialize `ApolloClient`
 
-In `index.js`, let's import `ApolloClient` from `@apollo/client` and provide our GraphQL server's URL as the `uri` property of the constructor's configuration object:
+Now that we have the dependencies we need, let's initialize an `ApolloClient` instance.
+
+In `index.js`, let's first import the symbols we need from `@apollo/client`:
 
 ```js:title=index.js
-import { ApolloClient, InMemoryCache } from '@apollo/client';
+import {
+  ApolloClient,
+  InMemoryCache,
+  ApolloProvider,
+  useQuery,
+  gql
+} from "@apollo/client";
+```
 
+Next we'll initialize `ApolloClient`, passing its constructor a configuration object with `uri` and `cache` fields: 
+
+
+```js:title=index.js
 const client = new ApolloClient({
   uri: 'https://48p1r2roz4.sse.codesandbox.io',
   cache: new InMemoryCache()
 });
 ```
 
-That's it! Our `client` is ready to start fetching data. Now, before we start using Apollo Client with React, let's first try sending a query with plain JavaScript.
+* `uri` specifies the URL of our GraphQL server.
+* `cache` is an instance of `InMemoryCache`, which Apollo Client uses to cache query results after fetching them.
 
-In the same `index.js` file, call `client.query()` with the query string shown below. You'll need to import the `gql` function to parse the query string into a query document.
+That's it! Our `client` is ready to start fetching data. Now before we start using Apollo Client with React, let's first try sending a query with plain JavaScript.
+
+In the same `index.js` file, call `client.query()` with the query string (wrapped in the `gql` template literal) shown below:
 
 ```js:title=index.js
-import { gql } from '@apollo/client';
-
 // const client = ...
 
 client
@@ -57,24 +75,33 @@ client
   .then(result => console.log(result));
 ```
 
-Run this code, open your console, and inspect the result object. You should see a `data` property with `rates` attached, along with some other properties like `loading` and `networkStatus`.
+Run this code, open your console, and inspect the result object. You should see a `data` property with `rates` attached, along with some other properties like `loading` and `networkStatus`. Nice!
 
-Although executing GraphQL operations like this can be useful, Apollo Client really shines when it's integrated with a view layer like React. You can bind queries to your UI and update it automatically as new data is fetched.
+Although executing GraphQL operations directly like this can be useful, Apollo Client really shines when it's integrated with a view layer like React. You can bind queries to your UI and update it automatically as new data is fetched.
 
 Let's look at how that works!
 
-## Connect your client to React
+## 3. Connect your client to React
 
-You connect Apollo Client to React with the `ApolloProvider` component. The `ApolloProvider` is similar to React's [`Context.Provider`](https://reactjs.org/docs/context.html#contextprovider). It wraps your React app and places the client on the context, which enables you to access it from anywhere in your component tree.
+You connect Apollo Client to React with the `ApolloProvider` component. Similar to React's [`Context.Provider`](https://reactjs.org/docs/context.html#contextprovider), `ApolloProvider` wraps your React app and places Apollo Client on the context, which enables you to access it from anywhere in your component tree.
 
-In `index.js`, let's wrap our React app with an `ApolloProvider`. We suggest putting the `ApolloProvider` somewhere high in your app, above any component that might need to access GraphQL data. For example, it could be outside of your root route component if you're using React Router.
+In `index.js`, let's wrap our React app with an `ApolloProvider`. We suggest putting the `ApolloProvider` somewhere high in your app, above any component that might need to access GraphQL data.
 
-```jsx
+```jsx{25-27}:title=index.js
 import React from 'react';
 import { render } from 'react-dom';
-import { ApolloProvider } from '@apollo/client/react';
+import {
+  ApolloClient,
+  InMemoryCache,
+  ApolloProvider,
+  useQuery,
+  gql
+} from "@apollo/client";
 
-const client = new ApolloClient({ uri, cache });
+const client = new ApolloClient({
+  uri: 'https://48p1r2roz4.sse.codesandbox.io',
+  cache: new InMemoryCache()
+});
 
 function App() {
   return (
@@ -92,20 +119,13 @@ render(
 );
 ```
 
-## Request data
+## 4. Fetch data with `useQuery`
 
-Once your `ApolloProvider` is hooked up, you're ready to start requesting data with `useQuery`. `useQuery` is a React hook that use the [Hooks API](https://reactjs.org/docs/hooks-intro.html) to share GraphQL data with your UI.
+After your `ApolloProvider` is hooked up, you can start requesting data with `useQuery`. `useQuery` is a [React hook](https://reactjs.org/docs/hooks-intro.html) that shares GraphQL data with your UI.
 
-First, pass your GraphQL query (wrapped in the `gql` function) to the `useQuery` hook. When your component renders and the `useQuery` hook runs, a result object is returned that contains `loading`, `error`, and `data` properties:
+Still in `index.js`, let's first define the query we want to execute by wrapping it in the `gql` template literal:
 
-* Apollo Client tracks error and loading state for you, which are reflected in the `loading` and `error` properties.
-* When the result of your query comes back, it's attached to the `data` property.
-
-Let's create an `ExchangeRates` component in `index.js` to see the `useQuery` hook in action:
-
-```jsx
-import { useQuery, gql } from '@apollo/client';
-
+```js:title=index.js
 const EXCHANGE_RATES = gql`
   query GetExchangeRates {
     rates(currency: "USD") {
@@ -114,7 +134,11 @@ const EXCHANGE_RATES = gql`
     }
   }
 `;
+```
 
+Next, let's define a component called `ExchangeRates` that executes our `GetExchangeRates` query with the `useQuery` hook:
+
+```js{2}:title=index.js
 function ExchangeRates() {
   const { loading, error, data } = useQuery(EXCHANGE_RATES);
 
@@ -131,9 +155,27 @@ function ExchangeRates() {
 }
 ```
 
-Congrats, you just made your first `useQuery`-based component! 🎉 If you render your `ExchangeRates` component within your `App` component from the previous example, you'll first see a loading indicator on the page, followed by data when it's ready. Apollo Client automatically caches this data when it comes back from the server, so you won't see a loading indicator if you run the same query again.
+Whenever this component renders, the `useQuery` hook automatically executes our query and returns a result object containing `loading`, `error`, and `data` properties:
 
-To play around with the app we just built, [check it out on CodeSandbox](https://codesandbox.io/s/get-started-coinbase-client-73r10). But don't stop there! Try building more components that use `useQuery`, and experiment with the concepts you just learned.
+* Apollo Client tracks a query's error and loading state for you, which are reflected in the `loading` and `error` properties.
+* When the result of your query comes back, it's attached to the `data` property.
+
+Finally, we'll add `ExchangeRates` to our existing component tree:
+
+```jsx{5}:title=index.js
+function App() {
+  return (
+    <div>
+      <h2>My first Apollo app 🚀</h2>
+      <ExchangeRates />
+    </div>
+  );
+}
+```
+
+When your app reloads, you should briefly see a loading indicator, followed by a list of exchange rates! If you don't, you can compare your code against the [completed app on CodeSandbox](https://codesandbox.io/s/get-started-coinbase-client-73r10).
+
+Congrats, you just made your first component that renders with GraphQL data from Apollo Client! 🎉 Now you can try building more components that use `useQuery` and experiment with the concepts you just learned.
 
 ## Next steps
 

@@ -16,19 +16,6 @@ export type ReactiveListener<T> = (value: T) => any;
 // called in Policies#readField.
 export const cacheSlot = new Slot<ApolloCache<any>>();
 
-// A listener function could in theory cause another listener to be added
-// to the set while we're iterating over it, so it's important to commit
-// to the original elements of the set before we begin iterating. See
-// iterateObserversSafely for another example of this pattern.
-function consumeAndIterate<T>(set: Set<T>, callback: (item: T) => any) {
-  if (set.size) {
-    const items: T[] = [];
-    set.forEach(item => items.push(item));
-    set.clear();
-    items.forEach(callback);
-  }
-}
-
 const cacheInfoMap = new WeakMap<ApolloCache<any>, {
   vars: Set<ReactiveVar<any>>;
   dep: OptimisticDependencyFunction<ReactiveVar<any>>;
@@ -79,7 +66,9 @@ export function makeVar<T>(value: T): ReactiveVar<T> {
           broadcast(cache);
         });
         // Finally, notify any listeners added via rv.onNextChange.
-        consumeAndIterate(listeners, listener => listener(value));
+        const oldListeners = Array.from(listeners);
+        listeners.clear();
+        oldListeners.forEach(listener => listener(value));
       }
     } else {
       // When reading from the variable, obtain the current cache from

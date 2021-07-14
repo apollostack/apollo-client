@@ -122,7 +122,7 @@ export const selectHttpOptionsAndBody = (
       ...config.options,
       headers: {
         ...options.headers,
-        ...config.headers,
+        ...headersToLowerCase(config.headers),
       },
     };
     if (config.credentials) options.credentials = config.credentials;
@@ -147,3 +147,16 @@ export const selectHttpOptionsAndBody = (
     body,
   };
 };
+
+function headersToLowerCase(
+  headers: Record<string, string> | undefined
+): typeof headers {
+  if (headers) {
+    const normalized = Object.create(null);
+    Object.keys(Object(headers)).forEach(name => {
+      normalized[name.toLowerCase()] = headers[name];
+    });
+    return normalized;
+  }
+  return headers;
+}

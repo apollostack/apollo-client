@@ -3,7 +3,7 @@ version: 2
 jobs:
   Filesize:
     docker:
-      - image: circleci/node:14
+      - image: circleci/node:16
     steps:
       - checkout
       - restore_cache:
@@ -26,7 +26,7 @@ jobs:
 
   Tests:
     docker:
-      - image: circleci/node:14
+      - image: circleci/node:16
     steps:
       - checkout
       - restore_cache:

@@ -1,20 +1,32 @@
 ---
-title: Optimistic UI
+title: Optimistic mutation results
+description: Update your UI before your server responds
 ---
 
-Optimistic UI is a pattern that you can use to simulate the results of a mutation and update the UI even before receiving a response from the server. Once the response is received from the server, the optimistic result is thrown away and replaced with the actual result.
+It's often possible to predict the most likely result of a mutation _before_ your GraphQL server returns it. Apollo Client can use this "most likely result" to update your UI **optimistically**, making your app feel more responsive to the user.
 
-Optimistic UI provides an easy way to make your UI respond much faster, while ensuring that the data becomes consistent with the actual response when it arrives.
+For example, let's say we have a blog application that supports the following mutation:
 
-## Basic optimistic UI
+```graphql
+type Mutation {
+  updateComment(commentId: ID!, content: String!): Comment!
+  
+  # ...other mutations...
+}
+```
 
-Let's say we have an "edit comment" mutation, and we want the UI to update immediately when the user submits the mutation, instead of waiting for the server response. This is what the `optimisticResponse` parameter to the `mutate` function provides.
+If a user edits an existing comment on a post, the app executes the `updateComment` mutation, which returns a `Comment` object with updated `content`.
 
-The main way to get GraphQL data into your UI components with Apollo is to use a query, so if we want our optimistic response to update the UI, we have to make sure to return an optimistic response that will update the correct query result. Learn more about how to do this with the [`dataIdFromObject`](../caching/cache-configuration/#data-normalization) option.
+Our app knows what the updated `Comment` object will probably look like, which means it can optimistically update its UI to display the update _before_ the GraphQL server responds with it. If our app is wrong (e.g., the GraphQL server returns an _unchanged_ `Comment` due to an error), the UI will automatically update to reflect the _actual_ response.
 
-Here's what this looks like in the code:
+## The `optimisticResponse` option
 
-```jsx
+To enable this optimistic UI behavior, we provide an `optimisticResponse` option to the [mutate function](../data/mutations/#calling-the-mutate-function) that we use to execute our mutation.
+
+Let's look at some code:
+
+```jsx{20-26}:title=CommentPageWithData.jsx
+// Mutation definition
 const UPDATE_COMMENT = gql`
   mutation UpdateComment($commentId: ID!, $commentContent: String!) {
     updateComment(commentId: $commentId, content: $commentContent) {
@@ -25,6 +37,7 @@ const UPDATE_COMMENT = gql`
   }
 `;
 
+// Component definition
 function CommentPageWithData() {
   const [mutate] = useMutation(UPDATE_COMMENT);
   return (
@@ -33,7 +46,6 @@ function CommentPageWithData() {
         mutate({
           variables: { commentId, commentContent },
           optimisticResponse: {
-            __typename: "Mutation",
             updateComment: {
               id: commentId,
               __typename: "Comment",
@@ -47,61 +59,50 @@ function CommentPageWithData() {
 }
 ```
 
-We select `id` and `__typename` because that's what our `dataIdFromObject` uses to determine a globally unique object ID. We need to make sure to provide the right values for those fields, so that Apollo knows what object we are referring to.
+As this example shows, the value of `optimisticResponse` is an object that matches the shape of the mutation response we expect from the server. Importantly, this includes the `Comment`'s `id` and `__typename` fields. The Apollo Client cache uses these values to generate the comment's [unique cache identifier](../caching/cache-configuration/#default-identifier-generation) (e.g., `Comment:5`).
 
-## Adding to a list
+## Optimistic mutation lifecycle
 
-In the example above, we showed how to seamlessly edit an existing object in the store with an optimistic mutation result. However, many mutations don't just update an existing object in the store, but they insert a new one.
+1. When the code above calls `mutate`, the Apollo Client cache stores a `Comment` object with the field values specified in `optimisticResponse`. _However_, it does not overwrite the _existing_ cached `Comment` with the same cache identifier. Instead, it stores a separate, _optimistic_ version of the object. This ensures that our cached data remains accurate if our `optimisticResponse` is wrong.
 
-In that case we need to specify how to integrate the new data into existing queries, and thus our UI. You can read in detail about how to do that in the article about [interacting with cached data](../caching/cache-interaction/)--in particular, we can use the `update` function to insert a result into an existing query's result set. `update` works exactly the same way for optimistic results and the real results returned from the server.
+2. Apollo Client notifies all active queries that include the modified comment. Those queries automatically update, and their associated components re-render to reflect the optimistic data. Because this doesn't require any network requests, it's nearly instantaneous to the user.
 
-Here is a concrete example from GitHunt, which inserts a comment into an existing list of comments.
+3. Eventually, our server responds with the mutation's _actual_ resulting  `Comment` object.
 
-```jsx
-const SUBMIT_COMMENT_MUTATION = gql`
-  mutation SubmitComment($repoFullName: String!, $commentContent: String!) {
-    submitComment(
-      repoFullName: $repoFullName
-      commentContent: $commentContent
-    ) {
-      postedBy {
-        login
-        html_url
-      }
-      createdAt
-      content
-    }
+4. The Apollo Client cache removes the optimistic version of the `Comment` object. It also overwrites the _canonical_ cached version with values returned from the server.
+
+5. Apollo Client notifies all affected queries again. The associated components re-render, but if the server's response matches our `optimisticResponse`, this is invisible to the user.
+
+## Example: Adding a new object to a list
+
+The previous example shows how to provide an optimistic result for an object that's _already_ in the Apollo Client cache. But what about a mutation that creates a _new_ object? This works similarly.
+
+The biggest difference here is that the client doesn't yet have the new object's `id` (or other identifying field). This means you have to provide a dummy value for the `id` so the Apollo Client cache can store the optimistic result as an object of the correct type.
+
+For example, here's an `optimisticResponse` for an `addTodo` mutation that creates a new item in a user's to-do list:
+
+```js
+optimisticResponse: {
+  addTodo: {
+    id: 'temp-id',
+    __typename: "Todo",
+    description: input.value // Obtained from user input
   }
-`;
-
-function CommentsPageWithMutations({ currentUser }) {
-  const [mutate] = useMutation(SUBMIT_COMMENT_MUTATION);
-  return (
-    <CommentsPage
-      submit={(repoFullName, commentContent) =>
-        mutate({
-          variables: { repoFullName, commentContent },
-          optimisticResponse: {
-            __typename: "Mutation",
-            submitComment: {
-              __typename: "Comment",
-              postedBy: currentUser,
-              createdAt: new Date(),
-              content: commentContent
-            }
-          },
-          update: (proxy, { data: { submitComment } }) => {
-            // Read the data from our cache for this query.
-            const data = proxy.readQuery({ query: CommentAppQuery });
-            // Write our data back to the cache with the new comment in it
-            proxy.writeQuery({ query: CommentAppQuery, data: {
-              ...data,
-              comments: [...data.comments, submitComment]
-            }});
-          }
-        })
-      }
-    />
-  );
 }
 ```
+
+When you execute the mutate function in this case, the Apollo Client cache stores a new `Todo` object with cache identifier `Todo:temp-id`. When the server responds with the new `Todo`'s _actual_ `id`, the optimistic object is removed as usual, and the canonical object is cached.
+
+### View on CodeSandbox
+
+You can view a full to-do list example on CodeSandbox: 
+
+<a href="https://codesandbox.io/s/github/apollographql/docs-examples/tree/main/todo-list/todo-list-client">
+  <img alt="Edit todo-list-client" src="https://codesandbox.io/static/img/play-codesandbox.svg"/>
+</a>
+
+> You can also run the example client and server locally by cloning the [`docs-examples` repo](https://github.com/apollographql/docs-examples/tree/main/todo-list).
+
+When viewing the example, try adding an item to the to-do list. Notice that the item appears in the list instantly, even though the server doesn't _respond_ instantly.
+
+Then, try editing an existing item in the to-do list. Notice that the item _doesn't_ update instantly. That's because the client doesn't provide an `optimisticResponse` for the `updateTodo` mutation. This helps illustrate the improved responsiveness that an `optimisticResponse` provides.

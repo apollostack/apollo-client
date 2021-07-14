@@ -1,18 +1,321 @@
-| Option | Type | Description |
-| - | - | - |
-| `query` | DocumentNode | A GraphQL query document parsed into an AST by `graphql-tag`. **Optional** for the `useQuery` Hook since the query can be passed in as the first parameter to the Hook. **Required** for the `Query` component. |
-| `variables` | { [key: string]: any } | An object containing all of the variables your query needs to execute |
-| `pollInterval` | number | Specifies the interval in ms at which you want your component to poll for data. Defaults to 0 (no polling). |
-| `notifyOnNetworkStatusChange` | boolean | Whether updates to the network status or network error should re-render your component. Defaults to false. |
-| `fetchPolicy` | FetchPolicy | How you want your component to interact with the Apollo cache. For details, see [Setting a fetch policy](https://www.apollographql.com/docs/react/data/queries/#setting-a-fetch-policy). |
-| `nextFetchPolicy` | FetchPolicy | Optional `FetchPolicy` to begin enforcing after the current request. Useful for switching back to `cache-first` after `cache-and-network` or `network-only`. |
-| `errorPolicy` | ErrorPolicy | How you want your component to handle network and GraphQL errors. Defaults to "none", which means we treat GraphQL errors as runtime errors. |
-| `ssr` | boolean | Pass in false to skip your query during server-side rendering. |
-| `displayName` | string | The name of your component to be displayed in React DevTools. Defaults to 'Query'. |
-| `skip` | boolean | If skip is true, the query will be skipped entirely. **Not available with `useLazyQuery`**. |
-| `onCompleted` | (data: TData &#124; {}) => void | A callback executed once your query successfully completes. |
-| `onError` | (error: ApolloError) => void | A callback executed in the event of an error. |
-| `context` | Record&lt;string, any&gt; | Shared context between your component and your network interface (Apollo Link). |
-| `partialRefetch` | boolean | If `true`, perform a query `refetch` if the query result is marked as being partial, and the returned data is reset to an empty Object by the Apollo Client `QueryManager` (due to a cache miss). The default value is `false` for backwards-compatibility's sake, but should be changed to true for most use-cases. |
-| `client` | ApolloClient | An `ApolloClient` instance. By default `useQuery` / `Query` uses the client passed down via context, but a different client can be passed in. |
-| `returnPartialData` | boolean | Opt into receiving partial results from the cache for queries that are not fully satisfied by the cache. false by default. |
+<table class="field-table api-ref">
+
+<thead>
+    <tr>
+      <th>Name /<br/>Type</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+
+<tbody>
+
+<tr>
+<td colspan="2">
+
+**Operation options**
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+###### `query`
+
+`DocumentNode`
+</td>
+
+<td>
+
+A GraphQL query string parsed into an AST with the `gql` template literal.
+
+**Optional** for the `useQuery` hook, because the query can be provided as the first parameter to the hook. **Required** for the `Query` component.
+</td>
+</tr>
+
+<tr>
+<td>
+
+###### `variables`
+
+`{ [key: string]: any }`
+</td>
+
+<td>
+
+An object containing all of the GraphQL variables your query requires to execute.
+
+Each key in the object corresponds to a variable name, and that key's value corresponds to the variable value.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+###### `errorPolicy`
+
+`ErrorPolicy`
+</td>
+
+<td>
+
+Specifies how the query handles a response that returns both GraphQL errors and partial results.
+
+For details, see [GraphQL error policies](https://www.apollographql.com/docs/react/data/error-handling/#graphql-error-policies).
+
+The default value is `none`, meaning that the query result includes error details but _not_ partial results.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+###### `onCompleted`
+
+`(data: TData | {}) => void`
+</td>
+
+<td>
+
+A callback function that's called when your query successfully completes with zero errors (or if `errorPolicy` is `ignore` and partial data is returned).
+
+This function is passed the query's result `data`.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+###### `onError`
+
+`(error: ApolloError) => void`
+</td>
+
+<td>
+
+A callback function that's called when the query encounters one or more errors (unless `errorPolicy` is `ignore`).
+
+This function is passed an [`ApolloError`](https://github.com/apollographql/apollo-client/blob/d96f4578f89b933c281bb775a39503f6cdb59ee8/src/errors/index.ts#L36-L39) object that contains either a `networkError` object or a `graphQLErrors` array, depending on the error(s) that occurred.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+###### `skip`
+
+`boolean`
+</td>
+
+<td>
+
+If `true`, the query is _not_ executed. **Not available with `useLazyQuery`.**
+
+This property is part of Apollo Client's React integration, and it is _not_ available in the [core `ApolloClient` API](https://www.apollographql.com/docs/react/api/core/ApolloClient/).
+
+The default value is `false`.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+###### `displayName`
+
+`string`
+</td>
+
+<td>
+
+The name of your component to be displayed in the React Developer Tools. 
+
+The default value is `Query`.
+
+</td>
+</tr>
+
+<tr>
+<td colspan="2">
+
+**Networking options**
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+###### `pollInterval`
+
+`number`
+</td>
+
+<td>
+
+Specifies the interval (in milliseconds) at which the query polls for updated results.
+
+The default value is `0` (no polling).
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+###### `notifyOnNetworkStatusChange`
+
+`boolean`
+</td>
+
+<td>
+
+If `true`, the in-progress query's associated component re-renders whenever the network status changes or a network error occurs.
+
+The default value is `false`.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+###### `context`
+
+`Record<string, any>`
+</td>
+
+<td>
+
+If you're using [Apollo Link](https://www.apollographql.com/docs/react/api/link/introduction/), this object is the initial value of the `context` object that's passed along your link chain.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+###### `ssr`
+
+`boolean`
+</td>
+
+<td>
+
+Pass `false` to skip executing the query during [server-side rendering](https://www.apollographql.com/docs/react/performance/server-side-rendering/).
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+###### `client`
+
+`ApolloClient`
+</td>
+
+<td>
+
+The instance of `ApolloClient` to use to execute the query.
+
+By default, the instance that's passed down via context is used, but you can provide a different instance here.
+
+</td>
+</tr>
+
+<tr>
+<td colspan="2">
+
+**Caching options**
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+###### `fetchPolicy`
+
+`FetchPolicy`
+</td>
+
+<td>
+
+Specifies how the query interacts with the Apollo Client cache during execution (for example, whether it checks the cache for results before sending a request to the server).
+
+For details, see [Setting a fetch policy](https://www.apollographql.com/docs/react/data/queries/#setting-a-fetch-policy).
+
+The default value is `cache-first`.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+###### `nextFetchPolicy`
+
+`FetchPolicy`
+</td>
+
+<td>
+
+Specifies the [`fetchPolicy`](#fetchpolicy) to use for all executions of this query _after_ this execution.
+
+For example, you can use this to switch back to a `cache-first` fetch policy after using `cache-and-network` or `network-only` for a single execution.
+
+</td>
+</tr>
+
+
+<tr>
+<td>
+
+###### `returnPartialData`
+
+`boolean`
+</td>
+
+<td>
+
+If `true`, the query can return _partial_ results from the cache if the cache doesn't contain results for _all_ queried fields.
+
+The default value is `false`.
+
+</td>
+</tr>
+
+<tr>
+<td colspan="2">
+
+**Deprecated options**
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+###### `partialRefetch`
+
+`boolean`
+</td>
+
+<td>
+
+**Deprecated.** If `true`, causes a query `refetch` if the query result is detected as partial. Setting this option is unnecessary in Apollo Client 3, thanks to a more consistent application of fetch policies. It might be removed in a future release.
+
+The default value is `false`.
+
+</td>
+</tr>
+
+
+</tbody>
+
+</table>

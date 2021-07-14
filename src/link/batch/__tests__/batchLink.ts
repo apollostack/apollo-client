@@ -132,6 +132,8 @@ function createMockBatchHandler(...mockedResponses: MockedResponse[]) {
 }
 
 describe('OperationBatcher', () => {
+  afterEach(() => jest.useRealTimers());
+
   it('should construct', () => {
     expect(() => {
       const querySched = new OperationBatcher({
@@ -324,6 +326,43 @@ describe('OperationBatcher', () => {
         }),
       );
       myBatcher.consumeQueue();
+    });
+
+    it('should be able to debounce requests', done => {
+      jest.useFakeTimers();
+      const batchInterval = 10;
+      const myBatcher = new OperationBatcher({
+        batchDebounce: true,
+        batchInterval,
+        batchHandler,
+      });
+
+      // 1. Queue up 3 requests
+      myBatcher.enqueueRequest({ operation }).subscribe({});
+      myBatcher.enqueueRequest({ operation }).subscribe({});
+      myBatcher.enqueueRequest({ operation }).subscribe({});
+      expect(myBatcher.queuedRequests.get('')!.length).toEqual(3);
+
+      // 2. Run the timer halfway.
+      jest.runTimersToTime(batchInterval / 2);
+      expect(myBatcher.queuedRequests.get('')!.length).toEqual(3);
+
+      // 3. Queue a 4th request, causing the timer to reset.
+      myBatcher.enqueueRequest({ operation }).subscribe({});
+      expect(myBatcher.queuedRequests.get('')!.length).toEqual(4);
+
+      // 4. Run the timer to batchInterval + 1, at this point, if debounce were
+      // not set, the original 3 requests would have fired, but we expect
+      // instead that the queries will instead fire at
+      // (batchInterval + batchInterval / 2).
+      jest.runTimersToTime(batchInterval / 2 + 1);
+      expect(myBatcher.queuedRequests.get('')!.length).toEqual(4);
+
+      // 5. Finally, run the timer to (batchInterval + batchInterval / 2) +1,
+      // and expect the queue to be empty.
+      jest.runTimersToTime(batchInterval / 2);
+      expect(myBatcher.queuedRequests.size).toEqual(0);
+      done();
     });
   });
 
